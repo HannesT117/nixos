@@ -6,6 +6,7 @@
 
     # Services
     ../../services/syncthing.nix
+    ../../services/tailscale.nix
   ];
 
   networking.hostName = "gmktec";
