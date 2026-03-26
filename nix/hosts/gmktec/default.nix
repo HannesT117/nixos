@@ -7,6 +7,7 @@
     # Services
     ../../services/syncthing.nix
     ../../services/tailscale.nix
+    ../../services/paperless.nix
   ];
 
   networking.hostName = "gmktec";
