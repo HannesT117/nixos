@@ -7,8 +7,12 @@
       automatic = true;
       dates = "weekly";
       options = "--delete-older-than 7d";
+      persistent = false;
     };
-    optimise.automatic = true;
+    optimise = {
+      automatic = true;
+      dates = ["weekly"]; # run less frequently
+    };
   };
 
   # Common packages available on all hosts

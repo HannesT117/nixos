@@ -14,6 +14,8 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.editor = false;
   boot.loader.efi.canTouchEfiVariables = true;
+  boot.initrd.systemd.enable = true; # to support yubikey
+
   fileSystems."/boot".options = [ "umask=0077" ];
 
   # User
