@@ -18,7 +18,10 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.systemd-boot.editor = false;
   boot.loader.efi.canTouchEfiVariables = true;
-  boot.initrd.systemd.enable = true; # to support yubikey
+  boot.initrd.systemd.enable = true;
+
+  # LUKS: try FIDO2 first, fall back to passphrase
+  boot.initrd.luks.devices."cryptroot".crypttabExtraOpts = [ "fido2-device=auto" ];
 
   fileSystems."/boot".options = [ "umask=0077" ];
 
