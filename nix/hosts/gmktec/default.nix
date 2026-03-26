@@ -21,7 +21,10 @@
   boot.initrd.systemd.enable = true;
 
   # LUKS: try FIDO2 first, fall back to passphrase
-  boot.initrd.luks.devices."cryptroot".crypttabExtraOpts = [ "fido2-device=auto" ];
+  boot.initrd.luks.devices."cryptroot".crypttabExtraOpts = [
+    "fido2-device=auto"
+    "token-timeout=60"
+  ];
 
   fileSystems."/boot".options = [ "umask=0077" ];
 
