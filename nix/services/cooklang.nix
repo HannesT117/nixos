@@ -9,7 +9,7 @@ let
 
     src = pkgs.fetchurl {
       url = "https://github.com/cooklang/cookcli/releases/download/v${version}/cook-x86_64-unknown-linux-musl.tar.gz";
-      sha256 = "0ag3yzzrgzc3m8zah5z3y2p2n4kz7059644gzls1rgbfvkq0mnhj"; # result of nix-prefetch-url --unpack <url_above>
+      hash = "sha256-2pGY0JfKL7ddzNqBmRm4dNKgaaIuU1Z4BVIn7JZ4/QE=";
     };
 
     sourceRoot = ".";
