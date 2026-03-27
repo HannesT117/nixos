@@ -8,6 +8,7 @@
     ../../services/syncthing.nix
     ../../services/tailscale.nix
     ../../services/paperless.nix
+    ../../services/cooklang.nix
   ];
 
   networking.hostName = "gmktec";
