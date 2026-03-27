@@ -1,5 +1,6 @@
-{ inputs, pkgs, ... }: {
+{ inputs, pkgs, lib, ... }: {
   imports = [
+    inputs.lanzaboote.nixosModules.lanzaboote
     inputs.nixos-hardware.nixosModules.common-pc
     inputs.nixos-hardware.nixosModules.common-pc-ssd
     ./hardware-configuration.nix
@@ -17,13 +18,19 @@
   time.timeZone = "Europe/Berlin";
 
   # Boot
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.systemd-boot.editor = false;
+  boot.loader.systemd-boot.enable = lib.mkForce false;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.initrd.systemd.enable = true;
+  boot.initrd.kernelModules = [ "tpm_crb" ];
 
-  # LUKS: try FIDO2 first, fall back to passphrase
+  boot.lanzaboote = {
+    enable = true;
+    pkiBundle = "/etc/secureboot";
+  };
+
+  # LUKS: try TPM2 first, then FIDO2, fall back to passphrase
   boot.initrd.luks.devices."cryptroot".crypttabExtraOpts = [
+    "tpm2-device=auto"
     "fido2-device=auto"
     "token-timeout=60"
   ];
@@ -62,6 +69,10 @@
     bantime = "31d";
     bantime-increment.enable = true;
   };
+
+  environment.systemPackages = with pkgs; [
+    sbctl
+  ];
 
   system.stateVersion = "25.11";
 }
