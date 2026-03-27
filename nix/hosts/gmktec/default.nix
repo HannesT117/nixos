@@ -25,7 +25,7 @@
 
   boot.lanzaboote = {
     enable = true;
-    pkiBundle = "/etc/secureboot";
+    pkiBundle = "/var/lib/sbctl";
   };
 
   # LUKS: try TPM2 first, then FIDO2, fall back to passphrase
