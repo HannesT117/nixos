@@ -30,11 +30,6 @@ in {
     group = "syncthing";
   };
 
-  # Ensure recipes directory exists with syncthing ownership
-  systemd.tmpfiles.rules = [
-    "d ${recipesDir} 0750 syncthing syncthing -"
-  ];
-
   # CookLang recipe server
   systemd.services.cooklang = {
     description = "CookLang Recipe Server";
