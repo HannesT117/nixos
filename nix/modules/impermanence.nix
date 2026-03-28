@@ -10,8 +10,8 @@ let
 
     # Delete any nested subvolumes systemd may have created under @
     btrfs subvolume list -o "$BTRFS_TOP/@" 2>/dev/null \
-      | awk '{print $NF}' \
-      | while read -r sub; do
+      | while read -r line; do
+          sub="''${line##* }"
           btrfs subvolume delete "$BTRFS_TOP/$sub" || true
         done
 
