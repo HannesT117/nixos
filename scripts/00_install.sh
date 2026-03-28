@@ -9,13 +9,16 @@ set -euo pipefail
 #   git clone https://github.com/HannesT117/homeserver /tmp/nixos
 #   bash /tmp/nixos/scripts/00_install.sh
 #
+# The repo is cloned to /mnt/persist/etc/nixos during install.
+# On the running system it is available at /etc/nixos (bind-mounted from /persist).
+#
 # After reboot into the new system, run scripts in order:
 #   01a_secureboot_verify.sh  →  (UEFI: delete keys)  →  01b_secureboot_enroll.sh  →  (UEFI: enable SB)  →  02_setuptpm2.sh
 
 NIX="nix --extra-experimental-features flakes --extra-experimental-features nix-command"
 NIXPKGS="github:NixOS/nixpkgs/nixos-unstable"
 REPO_URL="https://github.com/HannesT117/homeserver"
-FLAKE_DIR="/tmp/nixos"
+FLAKE_DIR="/mnt/persist/etc/nixos"
 
 echo "=== gmktec NixOS Install ==="
 echo ""

@@ -17,7 +17,7 @@ sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 "$LUKS_DEVICE"
 echo ""
 
 echo "=== Rebuilding to activate TPM2 config ==="
-sudo nixos-rebuild switch --flake /etc/nixos#gmktec  --extra-experimental-features "flakes nix-command"
+sudo nixos-rebuild switch --flake /etc/nixos#gmktec
 echo ""
 
 echo "=== Done ==="

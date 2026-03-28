@@ -66,7 +66,10 @@ in
       { directory = "/etc/NetworkManager/system-connections"; mode = "0700"; }
       "/var/lib/NetworkManager"
 
-      # Dotfiles git clone — avoids re-cloning from GitHub on every boot
+      # NixOS flake repository
+      "/etc/nixos"
+
+      # Avoid re-cloning dotfiles from GitHub on every boot
       "/etc/dotfiles"
     ];
     files = [
