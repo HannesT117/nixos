@@ -38,10 +38,14 @@
     "token-timeout=60"
   ];
 
-  # Users
+  # Set passwords from files on every boot
+  users.mutableUsers = false;
+  users.users.root.hashedPasswordFile = "/persist/secrets/root-password-hash";
+  # Change password: mkpasswd -m yescrypt | sudo tee /persist/secrets/root-password-hash
+
   users.users.nonroot = {
     isNormalUser = true;
-    hashedPassword = "!";
+    hashedPassword = "!"; # No password for nonroot. Only ssh possible.
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAWETf+yIYzRkaPHjcoHgF2mW2lD7XXJbqPhfUeLrXbg MacBookAir"
     ];
@@ -50,7 +54,6 @@
     ];
   };
 
-  users.users.root.hashedPasswordFile = "/persist/secrets/root-password-hash";
 
   # SSH
   services.openssh = {
