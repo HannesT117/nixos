@@ -24,12 +24,6 @@ let
   recipesDir = "/var/lib/syncthing/obsidian/main/rezepte";
 in {
 
-  # Syncthing group grants read access to recipes
-  users.users.cooklang = {
-    isSystemUser = true;
-    group = "syncthing";
-  };
-
   # CookLang recipe server
   systemd.services.cooklang = {
     description = "CookLang Recipe Server";
@@ -39,7 +33,7 @@ in {
 
     serviceConfig = {
       Type = "simple";
-      User = "cooklang";
+      User = "syncthing";
       Group = "syncthing";
       ExecStart = "${cookcli}/bin/cook server ${recipesDir} --host --port 9080";
       Restart = "always";

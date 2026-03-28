@@ -14,11 +14,6 @@
     openDefaultPorts = true; # TCP 22000 + UDP 22000 for sync, UDP 21027 for discovery
   };
 
-  # Shared directories
-  systemd.tmpfiles.rules = [
-    "d /var/lib/syncthing/obsidian/main/rezepte 0770 syncthing syncthing -"
-  ];
-
   # Firewall
   networking.firewall.extraInputRules = ''
     ip saddr 100.64.0.0/24 tcp dport 8384 accept
