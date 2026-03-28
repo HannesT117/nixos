@@ -73,13 +73,12 @@ sudo umount /mnt/var/lib/sbctl
 
 echo ""
 echo "=== Setting root password ==="
-echo "This is persisted in /etc/shadow via impermanence."
-echo "Change later with: passwd (as root)"
-# Copy the shadow file nixos-install created, set root's password, persist it
+echo "Change later with: mkpasswd -m yescrypt | sudo tee /persist/secrets/root-password-hash"
 HASH=$(sudo $NIX run "$NIXPKGS#mkpasswd" -- -m yescrypt)
-sudo sed -i "s|^root:[^:]*:|root:$HASH:|" /mnt/etc/shadow
-sudo mkdir -p /mnt/persist/etc
-sudo cp /mnt/etc/shadow /mnt/persist/etc/shadow
+sudo mkdir -p /mnt/persist/secrets
+echo "$HASH" | sudo tee /mnt/persist/secrets/root-password-hash > /dev/null
+sudo chmod 700 /mnt/persist/secrets
+sudo chmod 600 /mnt/persist/secrets/root-password-hash
 
 echo ""
 echo "=== Done ==="

@@ -77,13 +77,16 @@ in
       # Machine identity — stable across boots for journalctl, dbus, etc.
       "/etc/machine-id"
 
-      # SSH host keys — if these change, all clients reject the server (hard lockout)
+      # SSH host key — if this changes, all clients reject the server (hard lockout)
       "/etc/ssh/ssh_host_ed25519_key"
       "/etc/ssh/ssh_host_ed25519_key.pub"
-      "/etc/ssh/ssh_host_rsa_key"
-      "/etc/ssh/ssh_host_rsa_key.pub"
     ];
   };
+
+  # Enforce permissions on secrets directory
+  systemd.tmpfiles.rules = [
+    "d /persist/secrets 0700 root root -"
+  ];
 
   # sudo lecture file lives on ephemeral root — suppress it instead of persisting
   security.sudo.extraConfig = "Defaults lecture = never";

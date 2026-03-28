@@ -43,6 +43,14 @@
     ProtectHome = true;
     PrivateTmp = true;
     NoNewPrivileges = true;
+    PrivateDevices = true;
+    ProtectKernelTunables = true;
+    ProtectKernelModules = true;
+    ProtectKernelLogs = true;
+    ProtectControlGroups = true;
+    RestrictNamespaces = true;
+    RestrictRealtime = true;
+    LockPersonality = true;
     ReadWritePaths = [ "/var/lib/paperless" ];
   };
 
@@ -51,6 +59,14 @@
     ProtectHome = true;
     PrivateTmp = true;
     NoNewPrivileges = true;
+    PrivateDevices = true;
+    ProtectKernelTunables = true;
+    ProtectKernelModules = true;
+    ProtectKernelLogs = true;
+    ProtectControlGroups = true;
+    RestrictNamespaces = true;
+    RestrictRealtime = true;
+    LockPersonality = true;
     ReadWritePaths = [ "/var/lib/paperless" ];
   };
 }

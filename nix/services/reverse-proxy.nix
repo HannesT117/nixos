@@ -24,4 +24,9 @@
   };
 
   systemd.services.caddy.serviceConfig.EnvironmentFile = "/persist/secrets/porkbun-credentials";
+
+  # Firewall
+  networking.firewall.extraInputRules = ''
+    ip saddr 100.64.0.0/24 tcp dport { 80, 443 } accept
+  '';
 }

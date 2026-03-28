@@ -24,6 +24,12 @@ let
   recipesDir = "/var/lib/syncthing/obsidian/main/rezepte";
 in {
 
+  # Syncthing group grants read access to recipes
+  users.users.cooklang = {
+    isSystemUser = true;
+    group = "syncthing";
+  };
+
   # Ensure recipes directory exists with syncthing ownership
   systemd.tmpfiles.rules = [
     "d ${recipesDir} 0750 syncthing syncthing -"
@@ -38,7 +44,7 @@ in {
 
     serviceConfig = {
       Type = "simple";
-      User = "syncthing";
+      User = "cooklang";
       Group = "syncthing";
       ExecStart = "${cookcli}/bin/cook server ${recipesDir} --host --port 9080";
       Restart = "always";

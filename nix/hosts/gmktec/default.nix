@@ -60,8 +60,14 @@
   services.openssh = {
     enable = true;
     ports = [ 8822 ];
+    hostKeys = [
+      { path = "/etc/ssh/ssh_host_ed25519_key"; type = "ed25519"; }
+    ];
     settings = {
       PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "no";
+      X11Forwarding = false;
       AllowUsers = [ "nonroot" ];
     };
   };

@@ -9,9 +9,8 @@
     extraUpFlags = [ "--login-server" "https://headscale.jrdn.cx" ];
   };
 
-  # Allow Tailscale traffic through the firewall
+  # Allow Tailscale traffic. Services open their own ports via extraInputRules
   networking.firewall = {
-    trustedInterfaces = [ "tailscale0" ];
     allowedUDPPorts = [ config.services.tailscale.port ];  # default 41641
   };
 }
