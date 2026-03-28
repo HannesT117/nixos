@@ -41,7 +41,7 @@ sudo nix run github:nix-community/disko --extra-experimental-features "flakes ni
 
 echo ""
 echo "=== Installing NixOS ==="
-sudo nixos-install --flake "$FLAKE_DIR#gmktec" --no-root-password  --extra-experimental-features "flakes nix-command"
+sudo nixos-install --flake "$FLAKE_DIR#gmktec" --no-root-password
 
 echo ""
 echo "=== Done ==="
