@@ -40,6 +40,13 @@ sudo nix run github:nix-community/disko --extra-experimental-features "flakes ni
   "$FLAKE_DIR/nix/hosts/gmktec/disko.nix"
 
 echo ""
+echo "=== Creating temporary Secure Boot keys ==="
+echo "Lanzaboote needs signing keys to install. These are placeholders —"
+echo "01a_setupsecureboot.sh will regenerate real keys after first boot."
+sudo nix run nixpkgs#sbctl -- create-keys
+sudo cp -r /var/lib/sbctl /mnt/var/lib/sbctl
+
+echo ""
 echo "=== Installing NixOS ==="
 sudo nixos-install --flake "$FLAKE_DIR#gmktec" --no-root-password
 
