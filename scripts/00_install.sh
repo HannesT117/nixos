@@ -40,15 +40,27 @@ sudo nix run github:nix-community/disko --extra-experimental-features "flakes ni
   "$FLAKE_DIR/nix/hosts/gmktec/disko.nix"
 
 echo ""
+echo "=== Setting root password ==="
+echo "This password is used for 'su -' from the unprivileged nonroot account."
+echo "It is stored as a hash on /persist and survives impermanence wipes."
+sudo mkdir -p /mnt/persist/secrets
+HASH=$(nix run github:NixOS/nixpkgs/nixos-unstable#mkpasswd --extra-experimental-features "flakes nix-command" -- -m yescrypt)
+echo "$HASH" | sudo tee /mnt/persist/secrets/root-password-hash > /dev/null
+sudo chmod 600 /mnt/persist/secrets/root-password-hash
+
+echo ""
 echo "=== Creating temporary Secure Boot keys ==="
 echo "Lanzaboote needs signing keys to install. These are placeholders —"
 echo "01a_setupsecureboot.sh will regenerate real keys after first boot."
 sudo nix run nixpkgs#sbctl --extra-experimental-features "flakes nix-command" -- create-keys
-sudo cp -r /var/lib/sbctl /mnt/var/lib/sbctl
+# Bind-mount keys into target so lanzaboote finds them inside the nixos-install chroot
+sudo mkdir -p /mnt/var/lib/sbctl
+sudo mount --bind /var/lib/sbctl /mnt/var/lib/sbctl
 
 echo ""
 echo "=== Installing NixOS ==="
 sudo nixos-install --flake "$FLAKE_DIR#gmktec" --no-root-password
+sudo umount /mnt/var/lib/sbctl
 
 echo ""
 echo "=== Done ==="

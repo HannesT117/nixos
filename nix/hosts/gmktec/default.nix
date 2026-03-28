@@ -38,11 +38,10 @@
     "token-timeout=60"
   ];
 
-  # User
+  # Users
   users.users.nonroot = {
     isNormalUser = true;
     hashedPassword = "!";
-    extraGroups = [ "wheel" ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAWETf+yIYzRkaPHjcoHgF2mW2lD7XXJbqPhfUeLrXbg MacBookAir"
     ];
@@ -50,6 +49,8 @@
       tree
     ];
   };
+
+  users.users.root.hashedPasswordFile = "/persist/secrets/root-password-hash";
 
   # SSH
   services.openssh = {
