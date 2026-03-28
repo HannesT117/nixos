@@ -10,7 +10,7 @@ set -euo pipefail
 #   bash /tmp/nixos/scripts/00_install.sh
 #
 # After reboot into the new system, run scripts in order:
-#   01a_secureboot_verify.sh  →  (UEFI: Setup Mode)  →  01b_secureboot_enroll.sh  →  02_setuptpm2.sh
+#   01a_secureboot_verify.sh  →  (UEFI: delete keys)  →  01b_secureboot_enroll.sh  →  (UEFI: enable SB)  →  02_setuptpm2.sh
 
 NIX="nix --extra-experimental-features flakes --extra-experimental-features nix-command"
 NIXPKGS="github:NixOS/nixpkgs/nixos-unstable"
@@ -56,18 +56,8 @@ sudo $NIX run github:nix-community/disko -- \
   "$FLAKE_DIR/nix/hosts/gmktec/disko.nix"
 
 echo ""
-echo "=== Setting root password ==="
-echo "Stored as a hash on /persist — survives impermanence wipes."
-echo "Change later with: mkpasswd -m yescrypt | sudo tee /persist/secrets/root-password-hash"
-sudo mkdir -p /mnt/persist/secrets
-HASH=$(sudo $NIX run "$NIXPKGS#mkpasswd" -- -m yescrypt)
-echo "$HASH" | sudo tee /mnt/persist/secrets/root-password-hash > /dev/null
-sudo chmod 600 /mnt/persist/secrets/root-password-hash
-
-echo ""
-echo "=== Creating temporary Secure Boot keys ==="
-echo "Lanzaboote needs signing keys to install. These are placeholders —"
-echo "01a_setupsecureboot.sh will regenerate real keys after first boot."
+echo "=== Creating Secure Boot keys ==="
+echo "Lanzaboote needs signing keys to install the bootloader."
 sudo $NIX run "$NIXPKGS#sbctl" -- create-keys
 sudo mkdir -p /mnt/persist/var/lib/sbctl
 sudo cp -r /var/lib/sbctl/* /mnt/persist/var/lib/sbctl/
@@ -77,6 +67,16 @@ echo ""
 echo "=== Installing NixOS ==="
 sudo nixos-install --flake "$FLAKE_DIR#gmktec" --no-root-password
 sudo umount /mnt/var/lib/sbctl
+
+echo ""
+echo "=== Setting root password ==="
+echo "This is persisted in /etc/shadow via impermanence."
+echo "Change later with: passwd (as root)"
+# Copy the shadow file nixos-install created, set root's password, persist it
+HASH=$(sudo $NIX run "$NIXPKGS#mkpasswd" -- -m yescrypt)
+sudo sed -i "s|^root:[^:]*:|root:$HASH:|" /mnt/etc/shadow
+sudo mkdir -p /mnt/persist/etc
+sudo cp /mnt/etc/shadow /mnt/persist/etc/shadow
 
 echo ""
 echo "=== Done ==="

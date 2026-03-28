@@ -1,5 +1,27 @@
 { pkgs, lib, ... }:
 
+let
+  rollbackScript = pkgs.writeShellScript "rollback-root" ''
+    set -euo pipefail
+
+    BTRFS_TOP=/tmp/btrfs-rollback
+    mkdir -p "$BTRFS_TOP"
+    mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot "$BTRFS_TOP"
+
+    # Delete any nested subvolumes systemd may have created under @
+    btrfs subvolume list -o "$BTRFS_TOP/@" 2>/dev/null \
+      | awk '{print $NF}' \
+      | while read -r sub; do
+          btrfs subvolume delete "$BTRFS_TOP/$sub" || true
+        done
+
+    # Swap: delete current @ and restore from blank snapshot
+    btrfs subvolume delete "$BTRFS_TOP/@"
+    btrfs subvolume snapshot "$BTRFS_TOP/@blank" "$BTRFS_TOP/@"
+
+    umount "$BTRFS_TOP"
+  '';
+in
 {
   # disko owns the fileSystems definitions for /persist and /var/log.
   # impermanence requires neededForBoot = true on both — set here via merge.
@@ -17,31 +39,12 @@
     unitConfig.DefaultDependencies = "no";
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = pkgs.writeShellScript "rollback-root" ''
-        set -euo pipefail
-
-        BTRFS_TOP=/tmp/btrfs-rollback
-        mkdir -p "$BTRFS_TOP"
-        mount -t btrfs -o subvolid=5 /dev/mapper/cryptroot "$BTRFS_TOP"
-
-        # Delete any nested subvolumes systemd may have created under @
-        btrfs subvolume list -o "$BTRFS_TOP/@" 2>/dev/null \
-          | awk '{print $NF}' \
-          | while read -r sub; do
-              btrfs subvolume delete "$BTRFS_TOP/$sub" || true
-            done
-
-        # Swap: delete current @ and restore from blank snapshot
-        btrfs subvolume delete "$BTRFS_TOP/@"
-        btrfs subvolume snapshot "$BTRFS_TOP/@blank" "$BTRFS_TOP/@"
-
-        umount "$BTRFS_TOP"
-      '';
+      ExecStart = rollbackScript;
     };
   };
 
-  # btrfs-progs must be available in the initrd for the rollback service
-  boot.initrd.systemd.storePaths = [ pkgs.btrfs-progs ];
+  # Both the rollback script and btrfs-progs must be in the initrd
+  boot.initrd.systemd.storePaths = [ rollbackScript pkgs.btrfs-progs ];
 
   # Persistent state declarations — everything listed here is bind-mounted from /persist
   environment.persistence."/persist" = {

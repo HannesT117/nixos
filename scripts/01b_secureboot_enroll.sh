@@ -9,9 +9,8 @@ echo ""
 sudo sbctl status
 echo ""
 
-if ! sudo sbctl status 2>&1 | grep -qi "setup mode.*enabled"; then
-  echo "ERROR: Setup Mode is not active."
-  echo "Reboot into UEFI, delete all Secure Boot keys, then try again."
+if sudo sbctl status 2>&1 | grep -qi "secure boot.*enabled"; then
+  echo "ERROR: Secure Boot is already enabled. Key enrollment not needed."
   exit 1
 fi
 
