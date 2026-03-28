@@ -57,6 +57,7 @@ in
       "/var/lib/sbctl"
 
       # Services
+      "/var/lib/caddy"       # Loss of TLS certificates triggers re-issuance (rate limited)
       "/var/lib/syncthing"
       "/var/lib/paperless"
       "/var/lib/tailscale"

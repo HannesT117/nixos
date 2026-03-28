@@ -13,6 +13,7 @@
     ../../services/tailscale.nix
     ../../services/paperless.nix
     ../../services/cooklang.nix
+    ../../services/reverse-proxy.nix
   ];
 
   networking.hostName = "gmktec";
