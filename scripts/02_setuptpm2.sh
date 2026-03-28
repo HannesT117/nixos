@@ -5,7 +5,8 @@ echo "=== Verifying Secure Boot is active ==="
 sudo sbctl status
 echo ""
 echo "Secure Boot MUST be enabled before enrolling TPM2 (PCR7 must reflect final Secure Boot state)."
-read -p "Confirm Secure Boot is Enabled above, then press Enter..."
+read -p "Confirm Secure Boot is Enabled above (yes/no): " confirm
+[[ "$confirm" == "yes" ]] || { echo "Aborting. Debug with: sudo sbctl status"; exit 1; }
 
 # Device path for the LUKS partition on the gmktec NVMe
 LUKS_DEVICE="/dev/nvme0n1p2"

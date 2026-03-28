@@ -18,7 +18,14 @@ fi
 read -p "Setup Mode confirmed. Press Enter to enroll keys..."
 sudo sbctl enroll-keys --microsoft
 echo ""
+echo "=== Verifying enrollment ==="
 sudo sbctl status
+echo ""
+echo "Check above: Vendor Keys should show 'microsoft' (was 'none' before enrollment)."
+echo "Setup Mode will stay Enabled until Secure Boot is turned on in UEFI."
+echo ""
+read -p "Does the output look correct? (yes/no): " confirm
+[[ "$confirm" == "yes" ]] || { echo "Aborting. Debug with: sudo sbctl status"; exit 1; }
 echo ""
 echo "Keys enrolled. Now enable Secure Boot in UEFI."
 echo ""
