@@ -13,6 +13,8 @@
       PAPERLESS_OCR_SKIP_ARCHIVE_FILE = "with_text";
       PAPERLESS_TIME_ZONE = "Europe/Berlin";
       PAPERLESS_CONSUMER_POLLING = 60;
+      PAPERLESS_ALLOWED_HOSTS = "docs.jrdn.cx";
+      PAPERLESS_CSRF_TRUSTED_ORIGINS = "https://docs.jrdn.cx";
     };
   };
 
