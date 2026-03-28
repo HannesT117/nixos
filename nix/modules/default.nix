@@ -45,7 +45,7 @@
   system.activationScripts.dotfiles = ''
     if [ ! -d "/etc/dotfiles/.git" ]; then
       ${pkgs.git}/bin/git clone --no-checkout --filter=blob:none \
-        https://github.com/HannesT117/dotfiles.git /etc/dotfiles
+        https://github.com/HannesT117/dotfiles /etc/dotfiles
       cd /etc/dotfiles
       ${pkgs.git}/bin/git sparse-checkout init --cone
       ${pkgs.git}/bin/git sparse-checkout set shared
