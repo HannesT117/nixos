@@ -21,7 +21,7 @@ let
     '';
   };
 
-  recipesDir = "/var/lib/syncthing/obsidian/rezepte";
+  recipesDir = "/var/lib/syncthing/obsidian/main/rezepte";
 in {
 
   # Ensure recipes directory exists with syncthing ownership
