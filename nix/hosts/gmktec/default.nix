@@ -1,9 +1,12 @@
 { inputs, pkgs, lib, ... }: {
   imports = [
     inputs.lanzaboote.nixosModules.lanzaboote
+    inputs.impermanence.nixosModules.impermanence
+    inputs.disko.nixosModules.disko
     inputs.nixos-hardware.nixosModules.common-pc
     inputs.nixos-hardware.nixosModules.common-pc-ssd
     ./hardware-configuration.nix
+    ./disko.nix
 
     # Services
     ../../services/syncthing.nix
@@ -34,8 +37,6 @@
     "fido2-device=auto"
     "token-timeout=60"
   ];
-
-  fileSystems."/boot".options = [ "umask=0077" ];
 
   # User
   users.users.nonroot = {

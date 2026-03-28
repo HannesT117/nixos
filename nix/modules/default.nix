@@ -1,4 +1,5 @@
 { inputs, pkgs, ... }: {
+  imports = [ ./impermanence.nix ];
 
   # Nix settings
   nix = {
