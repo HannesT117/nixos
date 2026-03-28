@@ -6,7 +6,7 @@ sudo sbctl create-keys
 echo ""
 
 echo "=== Step 2: Build, sign, and verify ==="
-sudo nixos-rebuild switch --flake /etc/nixos#gmktec
+sudo nixos-rebuild switch --flake /etc/nixos#gmktec  --extra-experimental-features "flakes nix-command"
 echo ""
 echo "Verifying all EFI binaries are signed:"
 sudo sbctl verify

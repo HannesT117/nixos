@@ -35,13 +35,13 @@ sudo udevadm settle
 echo "=== Formatting disk and creating subvolumes ==="
 echo "You will be prompted to set the LUKS passphrase."
 echo ""
-sudo nix run github:nix-community/disko -- \
+sudo nix run github:nix-community/disko --extra-experimental-features "flakes nix-command" -- \
   --mode destroy,format,mount \
   "$FLAKE_DIR/nix/hosts/gmktec/disko.nix"
 
 echo ""
 echo "=== Installing NixOS ==="
-sudo nixos-install --flake "$FLAKE_DIR#gmktec" --no-root-password
+sudo nixos-install --flake "$FLAKE_DIR#gmktec" --no-root-password  --extra-experimental-features "flakes nix-command"
 
 echo ""
 echo "=== Done ==="
