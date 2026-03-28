@@ -6,8 +6,8 @@ Setup scripts for the gmktec NixOS server. Run them in numbered order when neede
 
 | Situation | Scripts to run |
 |-----------|---------------|
-| Fresh install or reinstall | `00` → `01a` → *(UEFI)* → `01b` → `02` |
-| Secure Boot keys lost or recreated | `01a` → *(UEFI)* → `01b` → `02` |
+| Fresh install or reinstall | `00` → `01a` → *(UEFI: delete keys)* → `01b` → *(UEFI: enable SB)* → `02` |
+| Secure Boot keys lost or recreated | `00` (re-creates keys) → `01a` → *(UEFI: delete keys)* → `01b` → *(UEFI: enable SB)* → `02` |
 | Secure Boot config changed (PCR7 affected) | `02` only |
 | Normal config change (`nixos-rebuild switch`) | None |
 
@@ -15,49 +15,50 @@ Setup scripts for the gmktec NixOS server. Run them in numbered order when neede
 
 ### `00_install.sh` — Fresh install
 
-Run from a **NixOS installer USB** — not from the installed system. The script checks this and exits with an error if you are booted from the target disk.
+Run from a **NixOS installer USB** — not from the installed system.
 
-Formats `/dev/nvme0n1`, creates all partitions and btrfs subvolumes via disko, and installs NixOS. You will be prompted for a LUKS passphrase — this is the fallback if TPM2 unlock ever fails.
+Clones the repo, formats `/dev/nvme0n1` via disko, prompts for LUKS passphrase and root password, creates Secure Boot signing keys, and installs NixOS.
 
 ```bash
-bash scripts/00_install.sh
+git clone https://github.com/HannesT117/homeserver /tmp/nixos
+bash /tmp/nixos/scripts/00_install.sh
 ```
 
-> **Must boot from installer USB.** You cannot format the disk you are currently running from. If you see `Device or resource busy` or `cryptroot is still in use`, you are on the wrong system.
+> **Must boot from installer USB.** You cannot format the disk you are currently running from.
 
 ---
 
-### `01a_setupsecureboot.sh` — Generate and sign
+### `01a_secureboot_verify.sh` — Verify signed binaries
 
-Run on the **installed system** (after reboot from installer).
+Run on the **installed system** after first boot.
 
-1. Generates Secure Boot signing keys via `sbctl`
-2. Builds and signs all EFI binaries
-3. Reboots — you then enter UEFI firmware to enter Setup Mode
+Verifies all EFI binaries are signed, then reboots for UEFI Setup Mode.
 
 ```bash
-bash scripts/01a_setupsecureboot.sh
+bash scripts/01a_secureboot_verify.sh
 ```
 
 **After reboot**, enter UEFI firmware settings:
 1. Go to **Secure Boot** settings
-2. **Delete all keys** — this puts the firmware into Setup Mode
-3. **Enable Secure Boot**
-4. Save and reboot back into NixOS
+2. **Delete all keys** — puts the firmware into Setup Mode
+3. Save and boot back into NixOS
 
 ---
 
-### `01b_enrollkeys.sh` — Enroll keys into firmware
+### `01b_secureboot_enroll.sh` — Enroll keys into firmware
 
 Run after returning from UEFI with Setup Mode active.
 
-1. Verifies Setup Mode is enabled
-2. Enrolls your custom keys into the firmware (`--microsoft` keeps GPU/NIC firmware working)
-3. Reboots to activate Secure Boot enforcement
+Enrolls custom keys (`--microsoft` keeps GPU/NIC firmware working) and reboots.
 
 ```bash
-bash scripts/01b_enrollkeys.sh
+bash scripts/01b_secureboot_enroll.sh
 ```
+
+**After reboot**, enter UEFI firmware settings:
+1. Go to **Secure Boot** settings
+2. **Enable Secure Boot** (now possible since PK is enrolled)
+3. Save and boot back into NixOS
 
 ---
 
@@ -65,7 +66,7 @@ bash scripts/01b_enrollkeys.sh
 
 Run after Secure Boot is confirmed active (`sudo sbctl status` shows `Secure Boot: ✓ Enabled`).
 
-Enrolls a TPM2 token so the disk unlocks automatically at boot — no passphrase or YubiKey needed. The LUKS passphrase remains as a fallback.
+Enrolls a TPM2 token so the disk unlocks automatically at boot. The LUKS passphrase remains as a fallback.
 
 Must run **after** Secure Boot is fully configured: the TPM2 token is sealed against the current Secure Boot state (PCR7). If Secure Boot configuration changes later, re-run this script.
 

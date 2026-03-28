@@ -2,16 +2,22 @@
 set -euo pipefail
 
 # Run this script from a NixOS installer USB to set up the gmktec from scratch.
-# It formats the disk, creates all partitions and btrfs subvolumes via disko,
+# It clones the repo, formats the disk, sets up passwords and Secure Boot keys,
 # and installs NixOS.
 #
-# After this script completes and you reboot into the new system, run:
-#   01a_setupsecureboot.sh  →  (UEFI interaction)  →  01b_enrollkeys.sh  →  02_setuptpm2.sh
+# Usage (from the NixOS installer):
+#   git clone https://github.com/HannesT117/homeserver /tmp/nixos
+#   bash /tmp/nixos/scripts/00_install.sh
+#
+# After reboot into the new system, run scripts in order:
+#   01a_secureboot_verify.sh  →  (UEFI: Setup Mode)  →  01b_secureboot_enroll.sh  →  02_setuptpm2.sh
 
-FLAKE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+NIX="nix --extra-experimental-features flakes --extra-experimental-features nix-command"
+NIXPKGS="github:NixOS/nixpkgs/nixos-unstable"
+REPO_URL="https://github.com/HannesT117/homeserver"
+FLAKE_DIR="/tmp/nixos"
 
 echo "=== gmktec NixOS Install ==="
-echo "Flake: $FLAKE_DIR"
 echo ""
 
 # Verify we are NOT running from the target disk
@@ -21,30 +27,40 @@ if mount | grep -q '/dev/mapper/cryptroot on / '; then
   exit 1
 fi
 
+# Clone or update the repo
+if [ -d "$FLAKE_DIR/.git" ]; then
+  echo "Updating existing repo at $FLAKE_DIR..."
+  git -C "$FLAKE_DIR" pull
+else
+  echo "Cloning repo to $FLAKE_DIR..."
+  git clone "$REPO_URL" "$FLAKE_DIR"
+fi
+
+echo ""
 echo "WARNING: This will DESTROY all data on /dev/nvme0n1."
 read -p "Type 'yes' to continue: " confirm
 [[ "$confirm" == "yes" ]] || { echo "Aborted."; exit 1; }
 
 echo ""
 echo "=== Preparing disk ==="
-# Close any existing LUKS mapping on this device
 sudo cryptsetup close cryptroot 2>/dev/null || true
 sudo wipefs -af /dev/nvme0n1
 sudo udevadm settle
 
+echo ""
 echo "=== Formatting disk and creating subvolumes ==="
 echo "You will be prompted to set the LUKS passphrase."
 echo ""
-sudo nix run github:nix-community/disko --extra-experimental-features "flakes nix-command" -- \
+sudo $NIX run github:nix-community/disko -- \
   --mode destroy,format,mount \
   "$FLAKE_DIR/nix/hosts/gmktec/disko.nix"
 
 echo ""
 echo "=== Setting root password ==="
-echo "This password is used for 'su -' from the unprivileged nonroot account."
-echo "It is stored as a hash on /persist and survives impermanence wipes."
+echo "Stored as a hash on /persist — survives impermanence wipes."
+echo "Change later with: mkpasswd -m yescrypt | sudo tee /persist/secrets/root-password-hash"
 sudo mkdir -p /mnt/persist/secrets
-HASH=$(nix run github:NixOS/nixpkgs/nixos-unstable#mkpasswd --extra-experimental-features "flakes nix-command" -- -m yescrypt)
+HASH=$(sudo $NIX run "$NIXPKGS#mkpasswd" -- -m yescrypt)
 echo "$HASH" | sudo tee /mnt/persist/secrets/root-password-hash > /dev/null
 sudo chmod 600 /mnt/persist/secrets/root-password-hash
 
@@ -52,10 +68,10 @@ echo ""
 echo "=== Creating temporary Secure Boot keys ==="
 echo "Lanzaboote needs signing keys to install. These are placeholders —"
 echo "01a_setupsecureboot.sh will regenerate real keys after first boot."
-sudo nix run nixpkgs#sbctl --extra-experimental-features "flakes nix-command" -- create-keys
-# Bind-mount keys into target so lanzaboote finds them inside the nixos-install chroot
-sudo mkdir -p /mnt/var/lib/sbctl
-sudo mount --bind /var/lib/sbctl /mnt/var/lib/sbctl
+sudo $NIX run "$NIXPKGS#sbctl" -- create-keys
+sudo mkdir -p /mnt/persist/var/lib/sbctl
+sudo cp -r /var/lib/sbctl/* /mnt/persist/var/lib/sbctl/
+sudo mount --bind /mnt/persist/var/lib/sbctl /mnt/var/lib/sbctl
 
 echo ""
 echo "=== Installing NixOS ==="
@@ -65,11 +81,11 @@ sudo umount /mnt/var/lib/sbctl
 echo ""
 echo "=== Done ==="
 echo "Reboot into the new system, then run scripts in order:"
-echo "  1. 01a_setupsecureboot.sh"
-echo "  2. (UEFI: delete all keys, enable Secure Boot, reboot)"
-echo "  3. 01b_enrollkeys.sh"
-echo "  4. (reboot)"
-echo "  5. 02_setuptpm2.sh"
+echo "  1. 01a_secureboot_verify.sh   (verifies signed binaries, reboots)"
+echo "  2. (UEFI: delete all keys, save and boot)"
+echo "  3. 01b_secureboot_enroll.sh   (enrolls keys into firmware, reboots)"
+echo "  4. (UEFI: enable Secure Boot, save and boot)"
+echo "  5. 02_setuptpm2.sh            (enrolls TPM2 for LUKS auto-unlock)"
 echo ""
 read -p "Press Enter to reboot..."
 sudo reboot
