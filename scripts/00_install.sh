@@ -43,7 +43,7 @@ echo ""
 echo "=== Creating temporary Secure Boot keys ==="
 echo "Lanzaboote needs signing keys to install. These are placeholders —"
 echo "01a_setupsecureboot.sh will regenerate real keys after first boot."
-sudo nix run nixpkgs#sbctl -- create-keys
+sudo nix run nixpkgs#sbctl --extra-experimental-features "flakes nix-command" -- create-keys
 sudo cp -r /var/lib/sbctl /mnt/var/lib/sbctl
 
 echo ""
