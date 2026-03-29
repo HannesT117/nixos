@@ -4,8 +4,6 @@
 
 **Secure Boot + TPM2 LUKS** = disk auto-unlocks on every boot, but only if the entire boot chain (firmware → bootloader → kernel) is unmodified. No passphrase, no YubiKey touch — and a tampered system stays locked.
 
-Secure Boot alone is weak. TPM2 LUKS alone is security theater (modified kernel boots and gets the key anyway). Together they're meaningful.
-
 ## How It Works
 
 ```
@@ -18,69 +16,36 @@ UEFI firmware
 
 **lanzaboote** creates signed Unified Kernel Images (UKIs) and replaces standard NixOS boot entries. **sbctl** manages signing keys and enrolls them into UEFI firmware.
 
-## NixOS Configuration
-
-```nix
-imports = [ inputs.lanzaboote.nixosModules.lanzaboote ];
-
-boot.loader.systemd-boot.enable = lib.mkForce false; # lanzaboote takes over
-boot.lanzaboote = {
-  enable = true;
-  pkiBundle = "/var/lib/sbctl";
-};
-
-boot.initrd.systemd.enable = true;
-boot.initrd.kernelModules = [ "tpm_crb" ];
-
-boot.initrd.luks.devices."cryptroot".crypttabExtraOpts = [
-  "tpm2-device=auto"   # TPM2 first
-  "fido2-device=auto"  # YubiKey fallback
-  "token-timeout=60"
-];
-```
-
-`lib.mkForce false` is needed because lanzaboote's module internally sets `systemd-boot.enable = true`.
-
 ## Setup Procedure
 
-Order is strict — deviating bricks the system.
+> ![warning]
+> Order is strict. Deviating bricks the system.
 
-### Step 1 — Generate keys (once)
 ```bash
+# Step 1: Generate keys (once)
 sudo sbctl create-keys
-```
 
-### Step 2 — Build and sign
-```bash
+# Step 2: Build and sign
 sudo nixos-rebuild switch --flake /etc/nixos#gmktec
 sudo sbctl verify   # every line must show ✓
-```
 
-### Step 3 — Enter UEFI Setup Mode
-Reboot → UEFI → Secure Boot → **Delete all keys** (enters Setup Mode) → **enable Secure Boot** → save → boot into NixOS.
-
-```bash
+# Step 3: Enter UEFI Setup Mode
+# Reboot → UEFI → Secure Boot → **Delete all keys** (enters Setup Mode) → **enable Secure Boot** → save → boot into NixOS.
 sudo sbctl status   # must show: Setup Mode: ✓ Enabled
-```
 
-### Step 4 — Enroll keys
-```bash
+# Step 4: Enroll keys
 sudo sbctl enroll-keys --microsoft   # --microsoft keeps GPU/NIC firmware working
 sudo sbctl status                    # must show: Setup Mode: ✗ Disabled
-```
 
-### Step 5 — Reboot
-```bash
+# Step 5: Reboot
 sudo sbctl status   # must show: Secure Boot: ✓ Enabled
-```
 
-### Step 6 — Enroll TPM2 for LUKS auto-unlock
-```bash
+# Step 6: Enroll TPM2 for LUKS auto-unlock
 sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/nvme0n1p2
 sudo nixos-rebuild switch --flake /etc/nixos#gmktec
 ```
 
-PCR7 binds the TPM key to Secure Boot state — any Secure Boot change requires re-enrollment.
+PCR7 binds the TPM key to Secure Boot state. Any Secure Boot change requires re-enrollment.
 
 ### Why this order matters
 
