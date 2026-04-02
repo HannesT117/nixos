@@ -65,8 +65,9 @@ ssh -i ~/.ssh/homeserver -L 8888:127.0.0.1:8384 nonroot@192.168.178.195 -p 8822
 
 **Apply config changes**
 ```bash
-sudo nixos-rebuild switch --flake /etc/nixos#gmktec
+sudo systemctl stop ollama && sudo nixos-rebuild switch --flake /etc/nixos#gmktec
 ```
+Ollama holds the port after failed starts. Stopping it first avoids conflicts.
 
 **Test config** (active until next reboot, no boot entry created)
 ```bash
