@@ -18,6 +18,14 @@ Configuration of my GMKtec homeserver. Base Setup:
 | n8n | n8n.jrdn.cx | [nix/services/n8n.md](nix/services/n8n.md) |
 | Ollama | localhost:11434 | [nix/services/ollama.md](nix/services/ollama.md) |
 
+## Adding a new service
+
+1. Create `nix/services/<name>.nix` following existing patterns (static user, systemd hardening)
+2. Import it in `nix/hosts/gmktec/default.nix`
+3. Add `/var/lib/<name>` to `nix/modules/impermanence.nix` if it needs persistent state
+4. Add a Caddy virtualHost in `nix/services/reverse-proxy.nix` if it needs a subdomain
+5. Ollama's `InaccessiblePaths` are auto-derived from impermanence. New `/var/lib/*` entries are hidden from ollama automatically
+
 ## Cheatsheet
 
 **Show enrolled LUKS unlock methods (password / tpm2 / fido2)**

@@ -1,5 +1,14 @@
-{ config, pkgs, lib, ... }: {
+{ config, pkgs, lib, ... }:
 
+let
+  # Derive InaccessiblePaths from impermanence: every persisted /var/lib/* path
+  # except ollama's own is hidden. New services are picked up automatically.
+  persistedDirs = config.environment.persistence."/persist".directories;
+  dirPath = d: if builtins.isString d then d else d.directory;
+  otherServicePaths = builtins.filter (p: p != "/var/lib/ollama")
+    (map dirPath (builtins.filter (d: lib.hasPrefix "/var/lib/" (dirPath d)) persistedDirs));
+in
+{
   users.users.ollama = {
     isSystemUser = true;
     group = "ollama";
@@ -25,15 +34,8 @@
     PrivateDevices = lib.mkForce true;
     CapabilityBoundingSet = "";
 
-    # Allowlist filesystem: empty root, bind-mount only what Ollama needs
-    TemporaryFileSystem = "/:ro";
-    BindPaths = [ "/var/lib/ollama" ];
-    BindReadOnlyPaths = [
-      "/nix/store"
-      "/run/systemd"
-      "/proc"
-      "/sys"
-    ];
+    # Auto-derived from impermanence: hide all other /var/lib/* service data
+    InaccessiblePaths = otherServicePaths ++ [ "/persist/secrets" ];
 
     MemoryMax = "8G";
 

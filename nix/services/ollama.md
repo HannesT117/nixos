@@ -5,16 +5,17 @@ Accessible to local services via the OpenAI-compatible API. Not exposed on Tails
 
 ## Sandbox model
 
-Ollama runs in a maximally restricted systemd sandbox:
+Ollama runs in a restricted systemd sandbox:
 
-- **`TemporaryFileSystem = "/"`**: starts with an empty read-only root; nothing
-  from the real filesystem is visible by default.
-- **`BindPaths`**: only `/var/lib/private/ollama` (model storage) is writable.
-- **`BindReadOnlyPaths`**: only `/nix/store`, `/run/systemd`, `/proc`, `/sys`
-  are visible read-only.
+- **`InaccessiblePaths`**: every persisted path, auto-derived from impermanence
+  `/var/lib/*` path except ollama's own is hidden. New services are picked up
+  automatically. `/persist/secrets` is also hidden.
 - **`IPAddressDeny = any` / `IPAddressAllow = localhost`**: no outbound network;
   cannot exfiltrate data or reach other services.
 - **`CapabilityBoundingSet = ""`**: all Linux capabilities dropped.
+- **`PrivateDevices = true`**: no hardware access (CPU-only, no iGPU).
+- **`MemoryMax = 8G`**: prevents starving other services.
+- Upstream hardening (`ProtectSystem`, `ProtectHome`, `PrivateTmp`, etc.) active.
 
 The model only ever sees data explicitly passed to it via the API.
 
