@@ -80,9 +80,12 @@ in
       PAPERLESS_ALLOWED_HOSTS = "docs.jrdn.cx";
       PAPERLESS_CSRF_TRUSTED_ORIGINS = "https://docs.jrdn.cx";
       PAPERLESS_CONSUMER_OWNER = "jo";
-      PAPERLESS_POST_CONSUME_SCRIPT = classifyScript;
+      PAPERLESS_POST_CONSUME_SCRIPT = toString classifyScript;
     };
   };
+
+  # Ensure classifyScript derivation is in the system closure
+  systemd.services.paperless-task-queue.path = [ classifyScript ];
 
   # See nix/services/paperless.md for setup instructions
   systemd.services.paperless-consumer.serviceConfig.EnvironmentFile =
