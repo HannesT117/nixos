@@ -79,6 +79,7 @@ in
       PAPERLESS_CONSUMER_POLLING = 60;
       PAPERLESS_ALLOWED_HOSTS = "docs.jrdn.cx";
       PAPERLESS_CSRF_TRUSTED_ORIGINS = "https://docs.jrdn.cx";
+      PAPERLESS_CONSUMER_OWNER = "jo";
       PAPERLESS_POST_CONSUME_SCRIPT = classifyScript;
     };
   };
