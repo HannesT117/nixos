@@ -1,6 +1,10 @@
 { config, pkgs, ... }:
 
 let
+  jq = "${pkgs.jq}/bin/jq";
+  curl = "${pkgs.curl}/bin/curl";
+  grep = "${pkgs.grep}/bin/grep";
+
   classifyScript = pkgs.writeShellScript "paperless-classify" ''
     set -euo pipefail
 
@@ -8,49 +12,53 @@ let
     BASE="http://localhost:8000"
     AUTH="Authorization: Token $PAPERLESS_API_TOKEN"
 
-    CONTENT=$(${pkgs.curl}/bin/curl -sf -H "$AUTH" "$BASE/api/documents/$DOC_ID/" \
-      | ${pkgs.jq}/bin/jq -r '.content // ""')
+    DOC_JSON=$(${curl} -sf -H "$AUTH" "$BASE/api/documents/$DOC_ID/")
+    TAGS_JSON=$(${curl} -sf -H "$AUTH" "$BASE/api/tags/?page_size=200")
 
-    TAGS_JSON=$(${pkgs.curl}/bin/curl -sf -H "$AUTH" "$BASE/api/tags/?page_size=200" \
-      | ${pkgs.jq}/bin/jq '[.results[] | {id, name}]')
-
-    if [ -z "$CONTENT" ]; then
+    CONTENT=$(printf '%s' "$DOC_JSON" | ${jq} -r '.content // empty')
+    if [ -z "''${CONTENT:-}" ]; then
       echo "paperless-classify: no content for document $DOC_ID, skipping" >&2
       exit 0
     fi
 
-    TAG_NAMES=$(echo "$TAGS_JSON" | ${pkgs.jq}/bin/jq -r '[.[].name] | join(", ")')
+    # Build the Ollama payload entirely in jq — no shell interpolation of untrusted data
+    PAYLOAD=$(printf '%s\n%s' "$TAGS_JSON" "$DOC_JSON" | ${jq} -sc '
+      (.[0].results // []) as $tags |
+      (.[1].content // "" | .[0:2000]) as $content |
+      ($tags | [.[].name] | join(", ")) as $tag_list |
+      {
+        model: "phi3:mini",
+        stream: false,
+        prompt: (
+          "You are classifying a document for a personal document archive. " +
+          "Based on the document text below, select the most relevant tags from this list: " +
+          $tag_list + ". " +
+          "Reply with ONLY a JSON array of tag names, e.g. [\"invoices\",\"insurance\"]. " +
+          "If no tags fit, reply with []. Do not explain, do not add any other text.\n\n" +
+          "Document:\n" + $content
+        )
+      }
+    ')
 
-    PROMPT="You are classifying a document for a personal document archive. \
-Based on the document text below, select the most relevant tags from this list: $TAG_NAMES. \
-Reply with ONLY a JSON array of tag names, e.g. [\"invoices\",\"insurance\"]. \
-If no tags fit, reply with []. Do not explain, do not add any other text.
-
-Document:
-$(echo "$CONTENT" | head -c 2000)"
-
-    PAYLOAD=$(${pkgs.jq}/bin/jq -nc --arg prompt "$PROMPT" \
-      '{model:"phi3:mini", prompt:$prompt, stream:false}')
-
-    RESPONSE=$(${pkgs.curl}/bin/curl -sf http://localhost:11434/api/generate \
+    RESPONSE=$(${curl} -sf http://localhost:11434/api/generate \
       -H "Content-Type: application/json" \
       -d "$PAYLOAD" \
-      | ${pkgs.jq}/bin/jq -r '.response // ""')
+      | ${jq} -r '.response // ""')
 
-    SUGGESTED=$(echo "$RESPONSE" | ${pkgs.grep}/bin/grep -o '\[.*\]' | head -1 || echo "[]")
+    SUGGESTED=$(printf '%s' "$RESPONSE" | ${grep} -o '\[.*\]' | head -1 || echo "[]")
 
-    TAG_IDS=$(echo "$TAGS_JSON" | ${pkgs.jq}/bin/jq --argjson suggested "$SUGGESTED" \
-      '[.[] | select(.name as $n | $suggested | index($n) != null) | .id]')
+    TAG_IDS=$(printf '%s' "$TAGS_JSON" | ${jq} --argjson suggested "$SUGGESTED" \
+      '[.results[] | select(.name as $n | $suggested | index($n) != null) | .id]')
 
     if [ "$TAG_IDS" = "[]" ]; then
       echo "paperless-classify: no matching tags found for document $DOC_ID" >&2
       exit 0
     fi
 
-    ${pkgs.curl}/bin/curl -sf -X PATCH "$BASE/api/documents/$DOC_ID/" \
+    ${curl} -sf -X PATCH "$BASE/api/documents/$DOC_ID/" \
       -H "$AUTH" \
       -H "Content-Type: application/json" \
-      -d "{\"tags\": $TAG_IDS}" > /dev/null
+      -d "$(printf '%s' "$TAG_IDS" | ${jq} -c '{tags: .}')" > /dev/null
 
     echo "paperless-classify: applied tags $TAG_IDS to document $DOC_ID" >&2
   '';
