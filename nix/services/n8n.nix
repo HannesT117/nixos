@@ -35,8 +35,6 @@
     StateDirectoryMode = "0700";
     EnvironmentFile = "/persist/secrets/n8n-credentials";
     CapabilityBoundingSet = "";
-    RemoveIPC = true;
-    RestrictSUIDSGID = true;
     RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" "AF_NETLINK" ];
     SystemCallArchitectures = "native";
   };
