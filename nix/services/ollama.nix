@@ -41,5 +41,9 @@
     IPAddressDeny = "any";
   };
 
+  systemd.tmpfiles.rules = [
+    "d /var/lib/ollama/models 0700 ollama ollama -"
+  ];
+
   # No firewall rule — localhost only, not exposed on Tailscale.
 }
