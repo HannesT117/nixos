@@ -3,7 +3,7 @@
 let
   jq = "${pkgs.jq}/bin/jq";
   curl = "${pkgs.curl}/bin/curl";
-  grep = "${pkgs.grep}/bin/grep";
+  grep = "${pkgs.gnugrep}/bin/grep";
 
   classifyScript = pkgs.writeShellScript "paperless-classify" ''
     set -euo pipefail
