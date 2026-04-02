@@ -62,7 +62,7 @@ in
       "/var/lib/paperless"
       "/var/lib/tailscale"
       "/var/lib/fail2ban"
-      "/var/lib/n8n"
+      "/var/lib/private/n8n"     # DynamicUser: actual data storage (symlinked from /var/lib/n8n)
       "/var/lib/private/ollama"  # DynamicUser: actual model storage (symlinked from /var/lib/ollama)
 
       # Network
@@ -85,9 +85,13 @@ in
     ];
   };
 
-  # Enforce permissions on secrets directory
+  # Enforce permissions on secrets directory and DynamicUser private dir
   systemd.tmpfiles.rules = [
     "d /persist/secrets 0700 root root -"
+    # /var/lib/private is created by impermanence with default 0755 when setting
+    # up bind mounts for DynamicUser services (ollama, n8n). Systemd requires
+    # 0700 on this directory or it refuses to start those services.
+    "d /var/lib/private 0700 root root -"
   ];
 
   # sudo lecture file lives on ephemeral root — suppress it instead of persisting
