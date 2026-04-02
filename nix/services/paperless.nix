@@ -51,6 +51,11 @@ let
           "- Only use names from the lists above. Do not invent new ones.\n" +
           "- Set correspondent and document_type to null if none fit.\n" +
           "- Set \"confident\" to false if you are unsure about any field.\n" +
+          "- Aufbewahrung is not selected by default" +
+          "- Aufbewahrung is 5jahre for: regular bills" +
+          "- Aufbewahrung is 10jahre for: tax-deductible bills, donations, tax-relevant documents, manuals" +
+          "- Aufbewahrung is never selected for: certificates, healthcare, governmental topics" +
+          "- Documents potentially relevant for taxes receive the tag Steuer/<current-year>, for example 2026" +
           "- Do not explain, do not add any other text.\n\n" +
           "Document:\n" + $content
         )
