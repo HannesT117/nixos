@@ -8,7 +8,9 @@ let
   classifyScript = pkgs.writeShellScript "paperless-classify" ''
     set -euo pipefail
 
-    DOC_ID="$DOCUMENT_ID"
+    # Paperless-ngx passes: $1=doc_id $2=filename $3=source_path $4=thumb_path
+    #   $5=download_url $6=thumb_url $7=correspondent $8=tags
+    DOC_ID="$1"
     BASE="http://localhost:8000"
     AUTH="Authorization: Token $PAPERLESS_API_TOKEN"
 
