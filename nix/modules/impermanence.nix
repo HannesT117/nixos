@@ -62,6 +62,8 @@ in
       "/var/lib/paperless"
       "/var/lib/tailscale"
       "/var/lib/fail2ban"
+      "/var/lib/n8n"
+      "/var/lib/private/ollama"  # DynamicUser: actual model storage (symlinked from /var/lib/ollama)
 
       # Network
       { directory = "/etc/NetworkManager/system-connections"; mode = "0700"; }

@@ -13,6 +13,8 @@
     ../../services/tailscale.nix
     ../../services/paperless.nix
     ../../services/cooklang.nix
+    ../../services/n8n.nix
+    ../../services/ollama.nix
     ../../services/reverse-proxy.nix
   ];
 

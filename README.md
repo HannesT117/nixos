@@ -8,6 +8,16 @@ Configuration of my GMKtec homeserver. Base Setup:
 - Caddy: Distribute traffic by subdomain to ports.
 - Headscale + DNS Records: Use real subdomains but provide services only via VPN.
 
+## Services
+
+| Service | URL | Docs |
+|---------|-----|------|
+| Syncthing | sync.jrdn.cx | — |
+| Paperless | docs.jrdn.cx | — |
+| Cooklang | cook.jrdn.cx | — |
+| n8n | n8n.jrdn.cx | [docs/n8n.md](docs/n8n.md) |
+| Ollama | localhost:11434 | [docs/ollama.md](docs/ollama.md) |
+
 ## Cheatsheet
 
 **Show enrolled LUKS unlock methods (password / tpm2 / fido2)**
