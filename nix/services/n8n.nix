@@ -1,4 +1,4 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, lib, ... }: {
 
   services.n8n = {
     enable = true;
@@ -21,23 +21,24 @@
   # Encryption key — see docs/n8n.md
   systemd.services.n8n.serviceConfig.EnvironmentFile = "/persist/secrets/n8n-credentials";
 
-  # Systemd hardening
-  systemd.services.n8n.serviceConfig = {
-    ProtectSystem = "strict";
-    ProtectHome = true;
-    PrivateTmp = true;
-    NoNewPrivileges = true;
-    PrivateDevices = true;
-    ProtectKernelTunables = true;
-    ProtectKernelModules = true;
-    ProtectKernelLogs = true;
-    ProtectControlGroups = true;
-    RestrictNamespaces = true;
-    RestrictRealtime = true;
-    LockPersonality = true;
-    CapabilityBoundingSet = "";
-    ReadWritePaths = [ "/var/lib/n8n" ];
-    RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" "AF_NETLINK" ];
-    SystemCallArchitectures = "native";
+  # Systemd hardening. lib.mkForce on each value to avoid type conflicts
+  # with the upstream n8n module which sets some of these using string "yes"/"no"
+  systemd.services.n8n.serviceConfig = with lib; {
+    ProtectSystem = mkForce "strict";
+    ProtectHome = mkForce true;
+    PrivateTmp = mkForce true;
+    NoNewPrivileges = mkForce true;
+    PrivateDevices = mkForce true;
+    ProtectKernelTunables = mkForce true;
+    ProtectKernelModules = mkForce true;
+    ProtectKernelLogs = mkForce true;
+    ProtectControlGroups = mkForce true;
+    RestrictNamespaces = mkForce true;
+    RestrictRealtime = mkForce true;
+    LockPersonality = mkForce true;
+    CapabilityBoundingSet = mkForce "";
+    ReadWritePaths = mkForce [ "/var/lib/n8n" ];
+    RestrictAddressFamilies = mkForce [ "AF_INET" "AF_INET6" "AF_UNIX" "AF_NETLINK" ];
+    SystemCallArchitectures = mkForce "native";
   };
 }
