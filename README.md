@@ -15,8 +15,8 @@ Configuration of my GMKtec homeserver. Base Setup:
 | Syncthing | sync.jrdn.cx | — |
 | Paperless | docs.jrdn.cx | — |
 | Cooklang | cook.jrdn.cx | — |
-| n8n | n8n.jrdn.cx | [docs/n8n.md](docs/n8n.md) |
-| Ollama | localhost:11434 | [docs/ollama.md](docs/ollama.md) |
+| n8n | n8n.jrdn.cx | [nix/services/n8n.md](nix/services/n8n.md) |
+| Ollama | localhost:11434 | [nix/services/ollama.md](nix/services/ollama.md) |
 
 ## Cheatsheet
 

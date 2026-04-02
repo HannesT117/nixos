@@ -7,7 +7,8 @@ Workflow automation running at `https://n8n.jrdn.cx` (Tailscale-only).
 Create the credentials file before first boot:
 
 ```bash
-printf 'N8N_ENCRYPTION_KEY=%s\n' "$(openssl rand -hex 32)" \
+printf 'N8N_ENCRYPTION_KEY=%s\n' \
+  "$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | od -An -tx1 | tr -d ' \n')" \
   | sudo tee /persist/secrets/n8n-credentials
 sudo chmod 600 /persist/secrets/n8n-credentials
 ```

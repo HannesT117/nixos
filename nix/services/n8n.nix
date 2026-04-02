@@ -3,9 +3,9 @@
   services.n8n = {
     enable = true;
 
-    settings = {
+    environment = {
       N8N_HOST = "0.0.0.0";
-      N8N_PORT = 5678;
+      N8N_PORT = "5678";
       N8N_PROTOCOL = "https";
       WEBHOOK_URL = "https://n8n.jrdn.cx";
       N8N_EDITOR_BASE_URL = "https://n8n.jrdn.cx";
