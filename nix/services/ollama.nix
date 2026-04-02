@@ -1,4 +1,4 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, lib, ... }: {
 
   services.ollama = {
     enable = true;
@@ -6,35 +6,24 @@
     port = 11434;
   };
 
-  # Sandbox and model-pull instructions — see docs/ollama.md
+  # Sandbox additions on top of upstream ollama module — see nix/services/ollama.md
   systemd.services.ollama.serviceConfig = {
-    ProtectSystem = "strict";
-    ProtectHome = true;
-    PrivateTmp = true;
-    PrivateDevices = true;
-    NoNewPrivileges = true;
-    ProtectKernelTunables = true;
-    ProtectKernelModules = true;
-    ProtectKernelLogs = true;
-    ProtectControlGroups = true;
-    RestrictNamespaces = true;
-    RestrictRealtime = true;
-    LockPersonality = true;
-    SystemCallArchitectures = "native";
-    RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" ];
+    # Override: upstream sets false for GPU access. This box has only a low-end
+    # integrated Intel UHD iGPU (6W TDP) — no meaningful acceleration, CPU-only is fine.
+    PrivateDevices = lib.mkForce true;
+
     CapabilityBoundingSet = "";
 
-    # Allowlist: empty root filesystem, bind-mount only what Ollama needs
+    # Allowlist filesystem: empty root, bind-mount only what Ollama needs
     TemporaryFileSystem = "/:ro";
     BindPaths = [ "/var/lib/private/ollama" ];
     BindReadOnlyPaths = [
       "/nix/store"
-      "/run/systemd"  # systemd integration only, not all of /run
+      "/run/systemd"
       "/proc"
       "/sys"
     ];
 
-    # Memory limit: leave room for other services
     MemoryMax = "8G";
 
     IPAddressAllow = "localhost";
