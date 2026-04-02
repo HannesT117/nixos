@@ -1,22 +1,33 @@
 { config, pkgs, lib, ... }: {
 
+  users.users.ollama = {
+    isSystemUser = true;
+    group = "ollama";
+    home = "/var/lib/ollama";
+  };
+  users.groups.ollama = {};
+
   services.ollama = {
     enable = true;
     host = "127.0.0.1";
     port = 11434;
   };
 
-  # Sandbox additions on top of upstream ollama module — see nix/services/ollama.md
+  # Disable DynamicUser so impermanence can persist /var/lib/ollama directly.
+  # Sandbox details see ./ollama.md
   systemd.services.ollama.serviceConfig = {
-    # Override: upstream sets false for GPU access. This box has only a low-end
-    # integrated Intel UHD iGPU (6W TDP) — no meaningful acceleration, CPU-only is fine.
-    PrivateDevices = lib.mkForce true;
+    DynamicUser = lib.mkForce false;
+    User = "ollama";
+    Group = "ollama";
+    StateDirectory = lib.mkForce "ollama";
+    StateDirectoryMode = "0700";
 
+    PrivateDevices = lib.mkForce true;
     CapabilityBoundingSet = "";
 
     # Allowlist filesystem: empty root, bind-mount only what Ollama needs
     TemporaryFileSystem = "/:ro";
-    BindPaths = [ "/var/lib/private/ollama" ];
+    BindPaths = [ "/var/lib/ollama" ];
     BindReadOnlyPaths = [
       "/nix/store"
       "/run/systemd"

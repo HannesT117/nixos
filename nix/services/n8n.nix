@@ -1,5 +1,12 @@
 { config, pkgs, lib, ... }: {
 
+  users.users.n8n = {
+    isSystemUser = true;
+    group = "n8n";
+    home = "/var/lib/n8n";
+  };
+  users.groups.n8n = {};
+
   services.n8n = {
     enable = true;
 
@@ -18,10 +25,18 @@
     ip saddr 100.64.0.0/24 tcp dport 5678 accept
   '';
 
-  # Hardening additions on top of upstream n8n module — see nix/services/n8n.md
+  # Disable DynamicUser so impermanence can persist /var/lib/n8n directly.
+  # See ./n8n.md
   systemd.services.n8n.serviceConfig = {
+    DynamicUser = lib.mkForce false;
+    User = "n8n";
+    Group = "n8n";
+    StateDirectory = lib.mkForce "n8n";
+    StateDirectoryMode = "0700";
     EnvironmentFile = "/persist/secrets/n8n-credentials";
     CapabilityBoundingSet = "";
+    RemoveIPC = true;
+    RestrictSUIDSGID = true;
     RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" "AF_NETLINK" ];
     SystemCallArchitectures = "native";
   };

@@ -85,7 +85,7 @@ in
 
   # See nix/services/paperless.md for setup instructions
   systemd.services.paperless-consumer.serviceConfig.EnvironmentFile =
-    "/persist/secrets/paperless-api-token";
+    "-/persist/secrets/paperless-api-token";
 
   systemd.tmpfiles.rules = [
     "d /var/lib/paperless/consume 2770 paperless paperless -"
