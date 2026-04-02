@@ -8,10 +8,14 @@ let
   classifyScript = pkgs.writeShellScript "paperless-classify" ''
     set -euo pipefail
 
-    # Paperless-ngx passes: $1=doc_id $2=filename $3=source_path $4=thumb_path
-    #   $5=download_url $6=thumb_url $7=correspondent $8=tags
     DOC_ID="$1"
     BASE="http://localhost:8000"
+
+    if [ -z "''${PAPERLESS_API_TOKEN:-}" ]; then
+      echo "paperless-classify: no API token configured, skipping" >&2
+      exit 0
+    fi
+
     AUTH="Authorization: Token $PAPERLESS_API_TOKEN"
 
     DOC_JSON=$(${curl} -sf -H "$AUTH" "$BASE/api/documents/$DOC_ID/")
@@ -89,8 +93,8 @@ in
   # Ensure classifyScript derivation is in the system closure
   systemd.services.paperless-task-queue.path = [ classifyScript ];
 
-  # See nix/services/paperless.md for setup instructions
-  systemd.services.paperless-consumer.serviceConfig.EnvironmentFile =
+  # API token for the classify script, runs in task-queue, not consumer
+  systemd.services.paperless-task-queue.serviceConfig.EnvironmentFile =
     "-/persist/secrets/paperless-api-token";
 
   systemd.tmpfiles.rules = [
