@@ -18,12 +18,10 @@
     ip saddr 100.64.0.0/24 tcp dport 5678 accept
   '';
 
-  # Encryption key — see docs/n8n.md
-  systemd.services.n8n.serviceConfig.EnvironmentFile = "/persist/secrets/n8n-credentials";
-
-  # Systemd hardening. lib.mkForce on each value to avoid type conflicts
-  # with the upstream n8n module which sets some of these using string "yes"/"no"
+  # Encryption key + systemd hardening, see nix/services/n8n.md
+  # lib.mkForce on each value to avoid type conflicts with the upstream n8n module
   systemd.services.n8n.serviceConfig = with lib; {
+    EnvironmentFile = "/persist/secrets/n8n-credentials";
     ProtectSystem = mkForce "strict";
     ProtectHome = mkForce true;
     PrivateTmp = mkForce true;
