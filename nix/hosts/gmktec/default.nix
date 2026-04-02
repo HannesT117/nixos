@@ -46,6 +46,9 @@
   users.users.root.hashedPasswordFile = "/persist/secrets/root-password-hash";
   # Change password: mkpasswd -m yescrypt | sudo tee /persist/secrets/root-password-hash
 
+  # Syncthing writes directly into Paperless consume folder
+  users.users.syncthing.extraGroups = [ "paperless" ];
+
   users.users.nonroot = {
     isNormalUser = true;
     hashedPassword = "!"; # No password for nonroot. Only ssh possible.

@@ -25,7 +25,7 @@
     ProtectSystem = "strict";           # read-only access to /usr, /boot, /etc
     ProtectHome = true;                 # no access to /home
     PrivateTmp = true;                  # isolated /tmp
-    ReadWritePaths = [ "/var/lib/syncthing" ];  # only its own data dir is writable
+    ReadWritePaths = [ "/var/lib/syncthing" "/var/lib/paperless/consume" ];
 
     # Privilege restrictions
     NoNewPrivileges = true;             # can't escalate privileges

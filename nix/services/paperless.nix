@@ -1,5 +1,61 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, ... }:
 
+let
+  classifyScript = pkgs.writeShellScript "paperless-classify" ''
+    set -euo pipefail
+
+    DOC_ID="$DOCUMENT_ID"
+    BASE="http://localhost:8000"
+    AUTH="Authorization: Token $PAPERLESS_API_TOKEN"
+
+    CONTENT=$(${pkgs.curl}/bin/curl -sf -H "$AUTH" "$BASE/api/documents/$DOC_ID/" \
+      | ${pkgs.jq}/bin/jq -r '.content // ""')
+
+    TAGS_JSON=$(${pkgs.curl}/bin/curl -sf -H "$AUTH" "$BASE/api/tags/?page_size=200" \
+      | ${pkgs.jq}/bin/jq '[.results[] | {id, name}]')
+
+    if [ -z "$CONTENT" ]; then
+      echo "paperless-classify: no content for document $DOC_ID, skipping" >&2
+      exit 0
+    fi
+
+    TAG_NAMES=$(echo "$TAGS_JSON" | ${pkgs.jq}/bin/jq -r '[.[].name] | join(", ")')
+
+    PROMPT="You are classifying a document for a personal document archive. \
+Based on the document text below, select the most relevant tags from this list: $TAG_NAMES. \
+Reply with ONLY a JSON array of tag names, e.g. [\"invoices\",\"insurance\"]. \
+If no tags fit, reply with []. Do not explain, do not add any other text.
+
+Document:
+$(echo "$CONTENT" | head -c 2000)"
+
+    PAYLOAD=$(${pkgs.jq}/bin/jq -nc --arg prompt "$PROMPT" \
+      '{model:"phi3:mini", prompt:$prompt, stream:false}')
+
+    RESPONSE=$(${pkgs.curl}/bin/curl -sf http://localhost:11434/api/generate \
+      -H "Content-Type: application/json" \
+      -d "$PAYLOAD" \
+      | ${pkgs.jq}/bin/jq -r '.response // ""')
+
+    SUGGESTED=$(echo "$RESPONSE" | ${pkgs.grep}/bin/grep -o '\[.*\]' | head -1 || echo "[]")
+
+    TAG_IDS=$(echo "$TAGS_JSON" | ${pkgs.jq}/bin/jq --argjson suggested "$SUGGESTED" \
+      '[.[] | select(.name as $n | $suggested | index($n) != null) | .id]')
+
+    if [ "$TAG_IDS" = "[]" ]; then
+      echo "paperless-classify: no matching tags found for document $DOC_ID" >&2
+      exit 0
+    fi
+
+    ${pkgs.curl}/bin/curl -sf -X PATCH "$BASE/api/documents/$DOC_ID/" \
+      -H "$AUTH" \
+      -H "Content-Type: application/json" \
+      -d "{\"tags\": $TAG_IDS}" > /dev/null
+
+    echo "paperless-classify: applied tags $TAG_IDS to document $DOC_ID" >&2
+  '';
+in
+{
   services.paperless = {
     enable = true;
     dataDir = "/var/lib/paperless";
@@ -15,8 +71,17 @@
       PAPERLESS_CONSUMER_POLLING = 60;
       PAPERLESS_ALLOWED_HOSTS = "docs.jrdn.cx";
       PAPERLESS_CSRF_TRUSTED_ORIGINS = "https://docs.jrdn.cx";
+      PAPERLESS_POST_CONSUME_SCRIPT = classifyScript;
     };
   };
+
+  # See nix/services/paperless.md for setup instructions
+  systemd.services.paperless-consumer.serviceConfig.EnvironmentFile =
+    "/persist/secrets/paperless-api-token";
+
+  systemd.tmpfiles.rules = [
+    "d /var/lib/paperless/consume 2770 paperless paperless -"
+  ];
 
   # Daily backup: export documents, rsync to syncthing with hard-link dedup
   systemd.services.paperless-backup = {
