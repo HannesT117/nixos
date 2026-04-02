@@ -20,6 +20,8 @@ let
 
     DOC_JSON=$(${curl} -sf -H "$AUTH" "$BASE/api/documents/$DOC_ID/")
     TAGS_JSON=$(${curl} -sf -H "$AUTH" "$BASE/api/tags/?page_size=200")
+    CORRESP_JSON=$(${curl} -sf -H "$AUTH" "$BASE/api/correspondents/?page_size=200")
+    DOCTYPE_JSON=$(${curl} -sf -H "$AUTH" "$BASE/api/document_types/?page_size=200")
 
     CONTENT=$(printf '%s' "$DOC_JSON" | ${jq} -r '.content // empty')
     if [ -z "''${CONTENT:-}" ]; then
@@ -28,19 +30,28 @@ let
     fi
 
     # Build the Ollama payload entirely in jq — no shell interpolation of untrusted data
-    PAYLOAD=$(printf '%s\n%s' "$TAGS_JSON" "$DOC_JSON" | ${jq} -sc '
-      (.[0].results // []) as $tags |
-      (.[1].content // "" | .[0:2000]) as $content |
-      ($tags | [.[].name] | join(", ")) as $tag_list |
+    PAYLOAD=$(printf '%s\n%s\n%s\n%s' "$TAGS_JSON" "$CORRESP_JSON" "$DOCTYPE_JSON" "$DOC_JSON" \
+      | ${jq} -sc '
+      (.[0].results // [] | [.[].name]) as $tags |
+      (.[1].results // [] | [.[].name]) as $correspondents |
+      (.[2].results // [] | [.[].name]) as $doc_types |
+      (.[3].content // "" | .[0:2000]) as $content |
       {
         model: "phi3:mini",
         stream: false,
         prompt: (
-          "You are classifying a document for a personal document archive. " +
-          "Based on the document text below, select the most relevant tags from this list: " +
-          $tag_list + ". " +
-          "Reply with ONLY a JSON array of tag names, e.g. [\"invoices\",\"insurance\"]. " +
-          "If no tags fit, reply with []. Do not explain, do not add any other text.\n\n" +
+          "You are classifying a document for a personal document archive.\n" +
+          "Based on the document text below, select:\n" +
+          "- tags: from this list: " + ($tags | join(", ")) + "\n" +
+          "- correspondent: from this list: " + ($correspondents | join(", ")) + "\n" +
+          "- document_type: from this list: " + ($doc_types | join(", ")) + "\n\n" +
+          "Reply with ONLY a JSON object like:\n" +
+          "{\"tags\": [\"tax-2025\"], \"correspondent\": \"Insurance\", \"document_type\": \"Invoice\", \"confident\": true}\n\n" +
+          "Rules:\n" +
+          "- Only use names from the lists above. Do not invent new ones.\n" +
+          "- Set correspondent and document_type to null if none fit.\n" +
+          "- Set \"confident\" to false if you are unsure about any field.\n" +
+          "- Do not explain, do not add any other text.\n\n" +
           "Document:\n" + $content
         )
       }
@@ -51,22 +62,55 @@ let
       -d "$PAYLOAD" \
       | ${jq} -r '.response // ""')
 
-    SUGGESTED=$(printf '%s' "$RESPONSE" | ${grep} -o '\[.*\]' | head -1 || echo "[]")
+    # Extract JSON object from response (LLM may add surrounding text)
+    LLM_JSON=$(printf '%s' "$RESPONSE" | ${grep} -o '{.*}' | head -1 || echo "{}")
 
-    TAG_IDS=$(printf '%s' "$TAGS_JSON" | ${jq} --argjson suggested "$SUGGESTED" \
-      '[.results[] | select(.name as $n | $suggested | index($n) != null) | .id]')
+    # Resolve tag names to IDs, add "review" tag if LLM is not confident
+    CONFIDENT=$(printf '%s' "$LLM_JSON" | ${jq} -r '.confident // false')
 
-    if [ "$TAG_IDS" = "[]" ]; then
-      echo "paperless-classify: no matching tags found for document $DOC_ID" >&2
+    PATCH_BODY=$(printf '%s\n%s\n%s\n%s\n%s' \
+      "$LLM_JSON" "$TAGS_JSON" "$CORRESP_JSON" "$DOCTYPE_JSON" "$CONFIDENT" \
+      | ${jq} -sc '
+      (.[0]) as $llm |
+      (.[1].results // []) as $tags |
+      (.[2].results // []) as $correspondents |
+      (.[3].results // []) as $doc_types |
+
+      # Resolve tag names to IDs
+      ([$tags[] | select(.name as $n | ($llm.tags // []) | index($n) != null) | .id]) as $tag_ids |
+
+      # Add "review" tag if not confident
+      (if ($llm.confident | not) then
+        ($tags[] | select(.name == "review") | .id) // null
+      else null end) as $review_id |
+
+      # Merge tag IDs
+      (if $review_id then ($tag_ids + [$review_id]) else $tag_ids end | unique) as $final_tags |
+
+      # Resolve correspondent
+      ([$correspondents[] | select(.name == ($llm.correspondent // "")) | .id] | first // null) as $corresp_id |
+
+      # Resolve document type
+      ([$doc_types[] | select(.name == ($llm.document_type // "")) | .id] | first // null) as $doctype_id |
+
+      # Build patch — only include fields the LLM actually set
+      {}
+      + (if ($final_tags | length) > 0 then {tags: $final_tags} else {} end)
+      + (if $corresp_id then {correspondent: $corresp_id} else {} end)
+      + (if $doctype_id then {document_type: $doctype_id} else {} end)
+    ')
+
+    if [ "$PATCH_BODY" = "{}" ]; then
+      echo "paperless-classify: nothing to apply for document $DOC_ID" >&2
       exit 0
     fi
 
     ${curl} -sf -X PATCH "$BASE/api/documents/$DOC_ID/" \
       -H "$AUTH" \
       -H "Content-Type: application/json" \
-      -d "$(printf '%s' "$TAG_IDS" | ${jq} -c '{tags: .}')" > /dev/null
+      -d "$PATCH_BODY" > /dev/null
 
-    echo "paperless-classify: applied tags $TAG_IDS to document $DOC_ID" >&2
+    echo "paperless-classify: doc $DOC_ID — applied $PATCH_BODY" >&2
   '';
 in
 {
