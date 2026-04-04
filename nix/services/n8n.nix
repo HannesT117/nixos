@@ -1,4 +1,26 @@
-{ config, pkgs, lib, ... }: {
+{ config, pkgs, lib, ... }:
+
+let
+  # Wrapper that fetches a dynamic grant token from n8n's broker, then starts the runner.
+  # In external mode, the broker issues one-time grant tokens via POST /runners/auth.
+  taskRunnerWrapper = pkgs.writeShellScript "n8n-task-runner-wrapper" ''
+    RESPONSE=$(${pkgs.curl}/bin/curl -sf -X POST \
+      "http://127.0.0.1:5679/runners/auth" \
+      -H "Content-Type: application/json" \
+      -d "{\"token\": \"$N8N_RUNNERS_AUTH_TOKEN\"}")
+
+    GRANT_TOKEN=$(echo "$RESPONSE" | ${pkgs.jq}/bin/jq -r '.data.token // .token // empty')
+
+    if [ -z "$GRANT_TOKEN" ]; then
+      echo "Failed to obtain grant token from broker" >&2
+      exit 1
+    fi
+
+    export N8N_RUNNERS_GRANT_TOKEN="$GRANT_TOKEN"
+    exec ${pkgs.n8n}/bin/n8n-task-runner
+  '';
+in
+{
 
   users.users.n8n = {
     isSystemUser = true;
@@ -59,7 +81,7 @@
 
     serviceConfig = {
       Type = "simple";
-      ExecStart = "${pkgs.n8n}/bin/n8n-task-runner";
+      ExecStart = "${taskRunnerWrapper}";
       Restart = "on-failure";
       RestartSec = "5s";
       User = "n8n";
