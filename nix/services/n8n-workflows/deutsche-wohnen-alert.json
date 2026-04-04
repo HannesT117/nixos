@@ -36,7 +36,7 @@
     },
     {
       "parameters": {
-        "url": "https://ntfy.jrdn.cx/wohnungen",
+        "url": "https://n.jrdn.cx/wohnungen",
         "method": "POST",
         "sendHeaders": true,
         "headerParameters": {

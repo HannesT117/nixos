@@ -10,7 +10,7 @@
   services.ntfy-sh = {
     enable = true;
     settings = {
-      base-url = "https://ntfy.jrdn.cx";
+      base-url = "https://n.jrdn.cx";
       listen-http = ":8091";
       auth-file = "/var/lib/ntfy-sh/user.db";
       auth-default-access = "deny-all";
