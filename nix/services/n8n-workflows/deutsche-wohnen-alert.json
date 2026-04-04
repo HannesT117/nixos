@@ -1,0 +1,77 @@
+{
+  "name": "Deutsche Wohnen Alerts",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "minutes", "minutesInterval": 15 }]
+        }
+      },
+      "name": "Every 30 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.deutsche-wohnen.com/api/deuwo-real-estate/list?limit=15&latitude=52.4983442&longitude=13.4065791&geoLocation=1&rentType=miete&perimeter=2&immoType=wohnung&priceMax=800&sizeMin=45&minRooms=0&floor=Beliebig&bathtub=0&bathwindow=0&bathshower=0&furnished=0&kitchenEBK=0&toiletSeparate=0&disabilityAccess=egal&seniorFriendly=0&balcony=ja&parkingCarport=0&parkingStellplatz=0&parkingGarage=0&parkingTiefgarage=0&subsidizedHousingPermit=egal&locationDisplay=Berlin, Kreuzberg&dataSet=deuwo",
+        "method": "GET",
+        "options": {
+          "response": { "response": { "responseFormat": "json" } }
+        }
+      },
+      "name": "Fetch Listings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Adjust field names if the API response differs\nconst listings = data.items ?? data.results ?? data.data ?? [];\n\n// Build a map of id -> listing for easy lookup\nconst current = {};\nfor (const item of listings) {\n  const id = String(item.id ?? item.objectId ?? item.externalId);\n  current[id] = item;\n}\n\n// Retrieve previously seen IDs from workflow static data\nconst staticData = $getWorkflowStaticData('global');\nconst seen = new Set(staticData.seenIds ?? []);\n\n// Find new listings\nconst newListings = Object.entries(current)\n  .filter(([id]) => !seen.has(id))\n  .map(([id, item]) => ({ id, item }));\n\n// Persist updated seen set (keep last 500 to avoid unbounded growth)\nconst allIds = [...seen, ...newListings.map(l => l.id)];\nstaticData.seenIds = allIds.slice(-500);\n\nif (newListings.length === 0) return [];\n\nreturn newListings.map(({ id, item }) => ({\n  json: {\n    id,\n    title: item.title ?? item.name ?? `Wohnung ${id}`,\n    price: item.rent ?? item.price ?? item.totalRent ?? '?',\n    size: item.livingArea ?? item.area ?? item.size ?? '?',\n    rooms: item.numberOfRooms ?? item.rooms ?? '?',\n    floor: item.floor ?? '',\n    address: [item.street, item.houseNumber, item.zipCode, item.city]\n      .filter(Boolean).join(' '),\n    url: `https://www.deutsche-wohnen.com/mieten/mietangebote/${id}`,\n  }\n}));"
+      },
+      "name": "Find New Listings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://ntfy.jrdn.cx/wohnungen",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Title", "value": "Neue Wohnung: {{ $json.title }}" },
+            { "name": "Priority", "value": "high" },
+            { "name": "Tags", "value": "house" },
+            { "name": "Click", "value": "={{ $json.url }}" },
+            {
+              "name": "Authorization",
+              "value": "Basic REPLACE_WITH_BASE64_USER_PASS"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/plain",
+        "body": "={{ $json.rooms }} Zimmer · {{ $json.size }} m² · {{ $json.price }} €/mo · {{ $json.floor ? $json.floor + '. OG · ' : '' }}{{ $json.address }}\n{{ $json.url }}"
+      },
+      "name": "Notify via Ntfy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "Every 30 min": {
+      "main": [[{ "node": "Fetch Listings", "type": "main", "index": 0 }]]
+    },
+    "Fetch Listings": {
+      "main": [[{ "node": "Find New Listings", "type": "main", "index": 0 }]]
+    },
+    "Find New Listings": {
+      "main": [[{ "node": "Notify via Ntfy", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

@@ -22,6 +22,7 @@
     virtualHosts."sync.jrdn.cx".extraConfig = "reverse_proxy localhost:8384";
     virtualHosts."docs.jrdn.cx".extraConfig = "reverse_proxy localhost:8000";
     virtualHosts."n8n.jrdn.cx".extraConfig = "reverse_proxy localhost:5678";
+    virtualHosts."ntfy.jrdn.cx".extraConfig = "reverse_proxy localhost:8091";
   };
 
   systemd.services.caddy.serviceConfig.EnvironmentFile = "/persist/secrets/porkbun-credentials";

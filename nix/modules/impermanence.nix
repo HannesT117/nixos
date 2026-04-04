@@ -62,6 +62,7 @@ in
       "/var/lib/paperless"
       "/var/lib/tailscale"
       "/var/lib/fail2ban"
+      "/var/lib/ntfy-sh"
       "/var/lib/n8n"
       "/var/lib/ollama"
 
