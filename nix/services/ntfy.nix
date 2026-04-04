@@ -1,14 +1,28 @@
 { config, pkgs, lib, ... }: {
 
+  users.users.ntfy-sh = {
+    isSystemUser = true;
+    group = "ntfy-sh";
+    home = "/var/lib/ntfy-sh";
+  };
+  users.groups.ntfy-sh = {};
+
   services.ntfy-sh = {
     enable = true;
     settings = {
       base-url = "https://ntfy.jrdn.cx";
       listen-http = ":8091";
       auth-file = "/var/lib/ntfy-sh/user.db";
-      # Deny all by default — create users with: ntfy user add <username>
       auth-default-access = "deny-all";
     };
+  };
+
+  systemd.services.ntfy-sh.serviceConfig = {
+    DynamicUser = lib.mkForce false;
+    User = "ntfy-sh";
+    Group = "ntfy-sh";
+    StateDirectory = lib.mkForce "ntfy-sh";
+    StateDirectoryMode = "0700";
   };
 
   networking.firewall.extraInputRules = ''

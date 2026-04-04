@@ -14,7 +14,7 @@
 - **Secrets**: stored in `/persist/secrets/` (0700 root:root). Services access them via `EnvironmentFile`. Prefix with `-` to make optional.
 - **Firewall**: all services restrict to Tailscale (`ip saddr 100.64.0.0/24`). Ollama is localhost-only (no firewall rule).
 - **Reverse proxy**: Caddy with Porkbun DNS-01 ACME. Subdomains in `nix/services/reverse-proxy.nix`.
-- **Static users over DynamicUser**: n8n and ollama use static system users (`isSystemUser = true`) because DynamicUser conflicts with impermanence bind mounts. Always use `DynamicUser = lib.mkForce false` when the upstream module enables it.
+- **Static users over DynamicUser**: n8n, ollama, and ntfy-sh use static system users (`isSystemUser = true`) because DynamicUser conflicts with impermanence bind mounts. Always use `DynamicUser = lib.mkForce false` when the upstream module enables it.
 - **Upstream module conflicts**: NixOS upstream modules often set hardening options (e.g., `LockPersonality = "yes"`). Don't re-set what upstream already handles. Only add options the upstream doesn't set. Use `lib.mkForce` only for deliberate overrides with a comment explaining why.
 - **Ollama sandbox**: `InaccessiblePaths` is auto-derived from impermanence config — every persisted `/var/lib/*` except ollama's own is hidden. No manual maintenance needed when adding services.
 
