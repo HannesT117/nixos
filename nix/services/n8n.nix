@@ -17,7 +17,6 @@
       WEBHOOK_URL = "https://n8n.jrdn.cx";
       N8N_EDITOR_BASE_URL = "https://n8n.jrdn.cx";
       GENERIC_TIMEZONE = "Europe/Berlin";
-      N8N_RUNNERS_ENABLED = "true";
       N8N_RUNNERS_MODE = "external";
       N8N_RUNNERS_BROKER_LISTEN_ADDRESS = "127.0.0.1";
       N8N_RUNNERS_BROKER_PORT = "5679";
@@ -53,8 +52,8 @@
     wantedBy = [ "multi-user.target" ];
 
     environment = {
-      N8N_RUNNERS_N8N_URI = "http://127.0.0.1:5679";
-      NODE_FUNCTION_ALLOW_EXTERNAL = "*";
+      N8N_RUNNERS_TASK_BROKER_URI = "http://127.0.0.1:5679";
+      GENERIC_TIMEZONE = "Europe/Berlin";
     };
 
     serviceConfig = {
