@@ -14,8 +14,8 @@
       listen-http = ":8091";
       auth-file = "/var/lib/ntfy-sh/user.db";
       auth-default-access = "deny-all";
-      behind-proxy = true;
-      upstream-base-url = "https://ntfy.sh";
+      behind-proxy = true; # https://docs.ntfy.sh/config/?h=behind+proxy#behind-a-proxy-tls-etc
+      upstream-base-url = "https://ntfy.sh"; # https://docs.ntfy.sh/config/#ios-instant-notifications
     };
   };
 
