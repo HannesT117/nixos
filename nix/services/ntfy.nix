@@ -14,6 +14,7 @@
       listen-http = ":8091";
       auth-file = "/var/lib/ntfy-sh/user.db";
       auth-default-access = "deny-all";
+      behind-proxy = true;
     };
   };
 
