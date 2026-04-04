@@ -14,7 +14,7 @@
     },
     {
       "parameters": {
-        "url": "https://www.deutsche-wohnen.com/api/deuwo-real-estate/list?limit=15&latitude=52.503641153982585&longitude=13.388082683086395&geoLocation=1&rentType=miete&perimeter=2&immoType=wohnung&priceMax=800&sizeMin=45&min Rooms=0&floor=Beliebig&bathtub=0&bathwindow=0&bathshower=0&furnished=0&kitchenEBK=0&toiletSeparate=0&disabilityAccess=egal&seniorFriendly=0&balcony=ja&parkingCarport=0&parkingStellplatz=0&parkingGarage=0&park ingTiefgarage=0&subsidizedHousingPermit=egal&locationDisplay=Berlin, Kreuzberg&dataSet=",
+        "url": "https://www.deutsche-wohnen.com/api/deuwo-real-estate/list?limit=15&latitude=52.503641153982585&longitude=13.388082683086395&geoLocation=1&rentType=miete&perimeter=3&immoType=wohnung&priceMax=800&sizeMin=45&min Rooms=0&floor=Beliebig&bathtub=0&bathwindow=0&bathshower=0&furnished=0&kitchenEBK=0&toiletSeparate=0&disabilityAccess=egal&seniorFriendly=0&balcony=ja&parkingCarport=0&parkingStellplatz=0&parkingGarage=0&park ingTiefgarage=0&subsidizedHousingPermit=egal&locationDisplay=Berlin, Kreuzberg&dataSet=",
         "method": "GET",
         "options": {
           "response": { "response": { "responseFormat": "json" } }
