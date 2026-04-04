@@ -18,6 +18,7 @@
       N8N_EDITOR_BASE_URL = "https://n8n.jrdn.cx";
       GENERIC_TIMEZONE = "Europe/Berlin";
       N8N_RUNNERS_MODE = "internal";
+      N8N_RUNNERS_LAUNCHER_PATH = "${pkgs.n8n}/bin/n8n-task-runner";
     };
   };
 
