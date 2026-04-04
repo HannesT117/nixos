@@ -15,6 +15,7 @@
       auth-file = "/var/lib/ntfy-sh/user.db";
       auth-default-access = "deny-all";
       behind-proxy = true;
+      upstream-base-url = "https://ntfy.sh";
     };
   };
 
