@@ -5,6 +5,7 @@
     settings = {
       base-url = "https://ntfy.jrdn.cx";
       listen-http = ":8091";
+      auth-file = "/var/lib/ntfy-sh/user.db";
       # Deny all by default — create users with: ntfy user add <username>
       auth-default-access = "deny-all";
     };

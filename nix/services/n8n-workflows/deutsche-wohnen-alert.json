@@ -27,7 +27,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\n\n// Adjust field names if the API response differs\nconst listings = data.items ?? data.results ?? data.data ?? [];\n\n// Build a map of id -> listing for easy lookup\nconst current = {};\nfor (const item of listings) {\n  const id = String(item.id ?? item.objectId ?? item.externalId);\n  current[id] = item;\n}\n\n// Retrieve previously seen IDs from workflow static data\nconst staticData = $getWorkflowStaticData('global');\nconst seen = new Set(staticData.seenIds ?? []);\n\n// Find new listings\nconst newListings = Object.entries(current)\n  .filter(([id]) => !seen.has(id))\n  .map(([id, item]) => ({ id, item }));\n\n// Persist updated seen set (keep last 500 to avoid unbounded growth)\nconst allIds = [...seen, ...newListings.map(l => l.id)];\nstaticData.seenIds = allIds.slice(-500);\n\nif (newListings.length === 0) return [];\n\nreturn newListings.map(({ id, item }) => ({\n  json: {\n    id,\n    title: item.title ?? item.name ?? `Wohnung ${id}`,\n    price: item.rent ?? item.price ?? item.totalRent ?? '?',\n    size: item.livingArea ?? item.area ?? item.size ?? '?',\n    rooms: item.numberOfRooms ?? item.rooms ?? '?',\n    floor: item.floor ?? '',\n    address: [item.street, item.houseNumber, item.zipCode, item.city]\n      .filter(Boolean).join(' '),\n    url: `https://www.deutsche-wohnen.com/mieten/mietangebote/${id}`,\n  }\n}));"
+        "jsCode": "const data = $input.first().json;\nconst listings = data.results ?? [];\n\nconst staticData = $getWorkflowStaticData('global');\nconst seen = new Set(staticData.seenIds ?? []);\n\nconst newListings = listings\n  .filter(item => !seen.has(String(item.wrk_id)))\n  .map(item => ({ id: String(item.wrk_id), item }));\n\n// Persist updated seen set (cap at 500)\nstaticData.seenIds = [...seen, ...newListings.map(l => l.id)].slice(-500);\n\nif (newListings.length === 0) return [];\n\nreturn newListings.map(({ id, item }) => ({\n  json: {\n    id,\n    title: item.titel,\n    price: item.preis.toFixed(2),\n    size: item.groesse,\n    rooms: item.anzahl_zimmer,\n    address: `${item.strasse}, ${item.plz} ${item.ort}`,\n    url: `https://www.deutsche-wohnen.com/mieten/mietangebote/${item.slug}`,\n  }\n}));"
       },
       "name": "Find New Listings",
       "type": "n8n-nodes-base.code",
@@ -54,7 +54,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "text/plain",
-        "body": "={{ $json.rooms }} Zimmer · {{ $json.size }} m² · {{ $json.price }} €/mo · {{ $json.floor ? $json.floor + '. OG · ' : '' }}{{ $json.address }}\n{{ $json.url }}"
+        "body": "={{ $json.rooms }} Zi · {{ $json.size }} m² · {{ $json.price }} €\n{{ $json.address }}\n{{ $json.url }}"
       },
       "name": "Notify via Ntfy",
       "type": "n8n-nodes-base.httpRequest",
