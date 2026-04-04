@@ -21,7 +21,7 @@
       N8N_RUNNERS_BROKER_LISTEN_ADDRESS = "0.0.0.0";
       N8N_RUNNERS_BROKER_PORT = "5679";
       N8N_RUNNERS_MAX_CONCURRENCY = "5";
-      N8N_RUNNERS_AUTH_TOKEN = "test";
+      N8N_RUNNERS_AUTH_TOKEN_FILE = "/persist/secrets/n8n-auth-token";
     };
   };
 
@@ -54,7 +54,7 @@
 
     environment = {
       N8N_RUNNERS_TASK_BROKER_URI = "http://127.0.0.1:5679";
-      N8N_RUNNERS_AUTH_TOKEN = "test";
+      N8N_RUNNERS_AUTH_TOKEN_FILE = "/persist/secrets/n8n-auth-token";
       GENERIC_TIMEZONE = "Europe/Berlin";
     };
 
@@ -65,7 +65,6 @@
       RestartSec = "5s";
       User = "n8n";
       Group = "n8n";
-      EnvironmentFile = "/persist/secrets/n8n-credentials";
       CapabilityBoundingSet = "";
       RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" ];
       SystemCallArchitectures = "native";
