@@ -18,9 +18,10 @@
       N8N_EDITOR_BASE_URL = "https://n8n.jrdn.cx";
       GENERIC_TIMEZONE = "Europe/Berlin";
       N8N_RUNNERS_MODE = "external";
-      N8N_RUNNERS_BROKER_LISTEN_ADDRESS = "127.0.0.1";
+      N8N_RUNNERS_BROKER_LISTEN_ADDRESS = "0.0.0.0";
       N8N_RUNNERS_BROKER_PORT = "5679";
       N8N_RUNNERS_MAX_CONCURRENCY = "5";
+      N8N_RUNNERS_AUTH_TOKEN = "test";
     };
   };
 
@@ -53,6 +54,7 @@
 
     environment = {
       N8N_RUNNERS_TASK_BROKER_URI = "http://127.0.0.1:5679";
+      N8N_RUNNERS_AUTH_TOKEN = "test";
       GENERIC_TIMEZONE = "Europe/Berlin";
     };
 
