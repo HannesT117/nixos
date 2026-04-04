@@ -17,8 +17,11 @@
       WEBHOOK_URL = "https://n8n.jrdn.cx";
       N8N_EDITOR_BASE_URL = "https://n8n.jrdn.cx";
       GENERIC_TIMEZONE = "Europe/Berlin";
-      N8N_RUNNERS_MODE = "internal";
-      N8N_RUNNERS_LAUNCHER_PATH = "${pkgs.n8n}/bin/n8n-task-runner";
+      N8N_RUNNERS_ENABLED = "true";
+      N8N_RUNNERS_MODE = "external";
+      N8N_RUNNERS_BROKER_LISTEN_ADDRESS = "127.0.0.1";
+      N8N_RUNNERS_BROKER_PORT = "5679";
+      N8N_RUNNERS_MAX_CONCURRENCY = "5";
     };
   };
 
@@ -39,5 +42,36 @@
     CapabilityBoundingSet = "";
     RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" "AF_NETLINK" ];
     SystemCallArchitectures = "native";
+  };
+
+  # External task runner sidecar — connects to n8n's broker to execute Code nodes.
+  # Auth token shared via the same credentials file as n8n.
+  systemd.services.n8n-task-runner = {
+    description = "n8n Task Runner (external)";
+    after = [ "n8n.service" ];
+    requires = [ "n8n.service" ];
+    wantedBy = [ "multi-user.target" ];
+
+    environment = {
+      N8N_RUNNERS_N8N_URI = "http://127.0.0.1:5679";
+      NODE_FUNCTION_ALLOW_EXTERNAL = "*";
+    };
+
+    serviceConfig = {
+      Type = "simple";
+      ExecStart = "${pkgs.n8n}/bin/n8n-task-runner launch --type javascript";
+      Restart = "on-failure";
+      RestartSec = "5s";
+      User = "n8n";
+      Group = "n8n";
+      EnvironmentFile = "/persist/secrets/n8n-credentials";
+      CapabilityBoundingSet = "";
+      RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" ];
+      SystemCallArchitectures = "native";
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      PrivateTmp = true;
+      NoNewPrivileges = true;
+    };
   };
 }
