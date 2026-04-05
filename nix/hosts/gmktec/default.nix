@@ -50,6 +50,7 @@
 
   # Syncthing writes directly into Paperless consume folder
   users.users.syncthing.extraGroups = [ "paperless" ];
+  users.users.nonroot.extraGroups = [ "jellyfin" ];
 
   users.users.nonroot = {
     isNormalUser = true;

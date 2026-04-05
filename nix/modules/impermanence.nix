@@ -66,6 +66,7 @@ in
       "/var/lib/n8n"
       "/var/lib/ollama"
       "/var/lib/jellyfin"
+      "/media"
 
       # Network
       { directory = "/etc/NetworkManager/system-connections"; mode = "0700"; }

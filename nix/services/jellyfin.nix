@@ -13,6 +13,14 @@
     openFirewall = false;
   };
 
+  # Create media subdirectories, owned by jellyfin so it can scan them
+  systemd.tmpfiles.rules = [
+    "d /media 0755 jellyfin jellyfin -"
+    "d /media/movies 0755 jellyfin jellyfin -"
+    "d /media/tv 0755 jellyfin jellyfin -"
+    "d /media/music 0755 jellyfin jellyfin -"
+  ];
+
   # Disable DynamicUser so impermanence can persist /var/lib/jellyfin directly.
   systemd.services.jellyfin.serviceConfig = {
     DynamicUser = lib.mkForce false;
