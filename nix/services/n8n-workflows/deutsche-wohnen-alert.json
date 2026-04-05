@@ -1,29 +1,24 @@
 {
-  "name": "Deutsche Wohnen Alerts",
   "nodes": [
     {
       "parameters": {
-        "rule": {
-          "interval": [{ "field": "minutes", "minutesInterval": 15 }]
-        }
-      },
-      "name": "Every 30 min",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [250, 300]
-    },
-    {
-      "parameters": {
-        "url": "https://www.deutsche-wohnen.com/api/deuwo-real-estate/list?limit=15&latitude=52.503641153982585&longitude=13.388082683086395&geoLocation=1&rentType=miete&perimeter=3&immoType=wohnung&priceMax=800&sizeMin=45&min Rooms=0&floor=Beliebig&bathtub=0&bathwindow=0&bathshower=0&furnished=0&kitchenEBK=0&toiletSeparate=0&disabilityAccess=egal&seniorFriendly=0&balcony=ja&parkingCarport=0&parkingStellplatz=0&parkingGarage=0&park ingTiefgarage=0&subsidizedHousingPermit=egal&locationDisplay=Berlin, Kreuzberg&dataSet=",
-        "method": "GET",
+        "url": "https://www.deutsche-wohnen.com/api/deuwo-real-estate/list?limit=15&latitude=52.503641153982585&longitude=13.388082683086395&geoLocation=1&rentType=miete&perimeter=4&immoType=wohnung&priceMax=800&sizeMin=45&min Rooms=0&floor=Beliebig&bathtub=0&bathwindow=0&bathshower=0&furnished=0&kitchenEBK=0&toiletSeparate=0&disabilityAccess=egal&seniorFriendly=0&balcony=ja&parkingCarport=0&parkingStellplatz=0&parkingGarage=0&park ingTiefgarage=0&subsidizedHousingPermit=egal&locationDisplay=Berlin, Kreuzberg&dataSet=",
         "options": {
-          "response": { "response": { "responseFormat": "json" } }
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
         }
       },
       "name": "Fetch Listings",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [470, 300]
+      "position": [
+        224,
+        0
+      ],
+      "id": "691fc042-4f06-4a3b-a66a-28b9f5d79a3f"
     },
     {
       "parameters": {
@@ -32,19 +27,170 @@
       "name": "Find New Listings",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [690, 300]
+      "position": [
+        448,
+        0
+      ],
+      "id": "2cdc4ac2-bfbf-4ea6-bf61-3d30a5c9e59e"
     },
     {
       "parameters": {
-        "url": "https://n.jrdn.cx/wohnungen",
         "method": "POST",
+        "url": "https://n.jrdn.cx/wohnungen",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpMultipleHeadersAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Title", "value": "Neue Wohnung: {{ $json.title }}" },
-            { "name": "Priority", "value": "high" },
-            { "name": "Tags", "value": "house" },
-            { "name": "Click", "value": "={{ $json.url }}" },
+            {
+              "name": "Title",
+              "value": "=Neue Wohnung: {{ $json.title }}"
+            },
+            {
+              "name": "Priority",
+              "value": "high"
+            },
+            {
+              "name": "Tags",
+              "value": "house"
+            },
+            {
+              "name": "Click",
+              "value": "={{ $json.url }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/plain",
+        "body": "={{ $json.rooms }} Zi · {{ $json.size }} m² · {{ $json.price }} €\n{{ $json.address }}\n{{ $json.url }}",
+        "options": {}
+      },
+      "name": "Notify via Ntfy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "e07f4fc8-1c97-4ab0-a8cf-8ab44e39df7f",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "buvOebbiVw2KaukE",
+          "name": "Bearer Auth account"
+        },
+        "httpMultipleHeadersAuth": {
+          "id": "8Y04f50OnLEkSfig",
+          "name": "Multiple Headers Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "name": "Interval Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "352d9c57-bbfd-4aa1-b7cd-c967cc1a20a1"
+    }
+  ],
+  "connections": {
+    "Fetch Listings": {
+      "main": [
+        [
+          {
+            "node": "Find New Listings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find New Listings": {
+      "main": [
+        [
+          {
+            "node": "Notify via Ntfy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interval Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Listings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "3e42fa0095d2c1a000a8ccfa8117c7c9b66f81e9c1e119b5685df98bc3470ce8"
+  }
+}        "url": "https://www.deutsche-wohnen.com/api/deuwo-real-estate/list?limit=15&latitude=52.503641153982585&longitude=13.388082683086395&geoLocation=1&rentType=miete&perimeter=4&immoType=wohnung&priceMax=800&sizeMin=45&min Rooms=0&floor=Beliebig&bathtub=0&bathwindow=0&bathshower=0&furnished=0&kitchenEBK=0&toiletSeparate=0&disabilityAccess=egal&seniorFriendly=0&balcony=ja&parkingCarport=0&parkingStellplatz=0&parkingGarage=0&park ingTiefgarage=0&subsidizedHousingPermit=egal&locationDisplay=Berlin, Kreuzberg&dataSet=",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "name": "Fetch Listings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [224, 0],
+      "id": "691fc042-4f06-4a3b-a66a-28b9f5d79a3f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst listings = data.results ?? [];\n\nconst staticData = $getWorkflowStaticData('global');\nconst seen = new Set(staticData.seenIds ?? []);\n\nconst newListings = listings\n  .filter(item => !seen.has(String(item.wrk_id)))\n  .map(item => ({ id: String(item.wrk_id), item }));\n\n// Persist updated seen set (cap at 500)\nstaticData.seenIds = [...seen, ...newListings.map(l => l.id)].slice(-500);\n\nif (newListings.length === 0) return [];\n\nreturn newListings.map(({ id, item }) => ({\n  json: {\n    id,\n    title: item.titel,\n    price: item.preis.toFixed(2),\n    size: item.groesse,\n    rooms: item.anzahl_zimmer,\n    address: `${item.strasse}, ${item.plz} ${item.ort}`,\n    url: `https://www.deutsche-wohnen.com/mieten/mietangebote/${item.slug}`,\n  }\n}));"
+      },
+      "name": "Find New Listings",
+      "position": [448, 0],
+      "id": "2cdc4ac2-bfbf-4ea6-bf61-3d30a5c9e59e"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n.jrdn.cx/wohnungen",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Title",
+              "value": "=Neue Wohnung: {{ $json.title }}"
+            },
+            {
+              "name": "Priority",
+              "value": "high"
+            },
+            {
+              "name": "Tags",
+              "value": "house"
+            },
+            {
+              "name": "Click",
+              "value": "={{ $json.url }}"
+            },
             {
               "name": "Authorization",
               "value": "Basic REPLACE_WITH_BASE64_USER_PASS"
@@ -54,24 +200,69 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "text/plain",
-        "body": "={{ $json.rooms }} Zi · {{ $json.size }} m² · {{ $json.price }} €\n{{ $json.address }}\n{{ $json.url }}"
+        "body": "={{ $json.rooms }} Zi · {{ $json.size }} m² · {{ $json.price }} €\n{{ $json.address }}\n{{ $json.url }}",
+        "options": {}
       },
       "name": "Notify via Ntfy",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [910, 300]
+      "position": [672, 0],
+      "id": "e07f4fc8-1c97-4ab0-a8cf-8ab44e39df7f"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "name": "Interval Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "id": "352d9c57-bbfd-4aa1-b7cd-c967cc1a20a1"
     }
   ],
   "connections": {
-    "Every 30 min": {
-      "main": [[{ "node": "Fetch Listings", "type": "main", "index": 0 }]]
-    },
     "Fetch Listings": {
-      "main": [[{ "node": "Find New Listings", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Find New Listings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Find New Listings": {
-      "main": [[{ "node": "Notify via Ntfy", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Notify via Ntfy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interval Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Listings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": { "executionOrder": "v1" }
-}
+  "pinData": {},
+  "meta": {
+    "instanceId": "3e42fa0095d2c1a000a8ccfa8117c7c9b66f81e9c1e119b5685df98bc3470ce8"
+  }
