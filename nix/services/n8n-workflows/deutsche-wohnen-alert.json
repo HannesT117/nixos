@@ -2,39 +2,6 @@
   "nodes": [
     {
       "parameters": {
-        "url": "https://www.deutsche-wohnen.com/api/deuwo-real-estate/list?limit=15&latitude=52.503641153982585&longitude=13.388082683086395&geoLocation=1&rentType=miete&perimeter=4&immoType=wohnung&priceMax=800&sizeMin=45&min Rooms=0&floor=Beliebig&bathtub=0&bathwindow=0&bathshower=0&furnished=0&kitchenEBK=0&toiletSeparate=0&disabilityAccess=egal&seniorFriendly=0&balcony=ja&parkingCarport=0&parkingStellplatz=0&parkingGarage=0&park ingTiefgarage=0&subsidizedHousingPermit=egal&locationDisplay=Berlin, Kreuzberg&dataSet=",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "json"
-            }
-          }
-        }
-      },
-      "name": "Fetch Listings",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        224,
-        0
-      ],
-      "id": "691fc042-4f06-4a3b-a66a-28b9f5d79a3f"
-    },
-    {
-      "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst listings = data.results ?? [];\n\nconst staticData = $getWorkflowStaticData('global');\nconst seen = new Set(staticData.seenIds ?? []);\n\nconst newListings = listings\n  .filter(item => !seen.has(String(item.wrk_id)))\n  .map(item => ({ id: String(item.wrk_id), item }));\n\n// Persist updated seen set (cap at 500)\nstaticData.seenIds = [...seen, ...newListings.map(l => l.id)].slice(-500);\n\nif (newListings.length === 0) return [];\n\nreturn newListings.map(({ id, item }) => ({\n  json: {\n    id,\n    title: item.titel,\n    price: item.preis.toFixed(2),\n    size: item.groesse,\n    rooms: item.anzahl_zimmer,\n    address: `${item.strasse}, ${item.plz} ${item.ort}`,\n    url: `https://www.deutsche-wohnen.com/mieten/mietangebote/${item.slug}`,\n  }\n}));"
-      },
-      "name": "Find New Listings",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        448,
-        0
-      ],
-      "id": "2cdc4ac2-bfbf-4ea6-bf61-3d30a5c9e59e"
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "https://n.jrdn.cx/wohnungen",
         "authentication": "predefinedCredentialType",
@@ -69,16 +36,9 @@
       "name": "Notify via Ntfy",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        672,
-        0
-      ],
-      "id": "e07f4fc8-1c97-4ab0-a8cf-8ab44e39df7f",
+      "position": [208, 64],
+      "id": "c6b37ea4-d389-4e6b-ba61-e572b2eaa57b",
       "credentials": {
-        "httpBearerAuth": {
-          "id": "buvOebbiVw2KaukE",
-          "name": "Bearer Auth account"
-        },
         "httpMultipleHeadersAuth": {
           "id": "8Y04f50OnLEkSfig",
           "name": "Multiple Headers Auth account"
@@ -99,53 +59,150 @@
       "name": "Interval Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        0,
-        0
-      ],
-      "id": "352d9c57-bbfd-4aa1-b7cd-c967cc1a20a1"
-    }
-  ],
-  "connections": {
-    "Fetch Listings": {
-      "main": [
-        [
-          {
-            "node": "Find New Listings",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "position": [-464, 64],
+      "id": "59655ceb-4ef1-4332-a000-be7165e8bab1"
     },
-    "Find New Listings": {
-      "main": [
-        [
-          {
-            "node": "Notify via Ntfy",
-            "type": "main",
-            "index": 0
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.harry-gerlach.de/wohnung-mieten-berlin/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; apartment-alert/1.0)"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "tx_nbmaklertool_pi1[form]",
+              "value": "1"
+            },
+            {
+              "name": "tx_nbmaklertool_pi1[location]",
+              "value": "0"
+            },
+            {
+              "name": "tx_nbmaklertool_pi1[flaeche]",
+              "value": "0"
+            },
+            {
+              "name": "tx_nbmaklertool_pi1[zimmer_von]",
+              "value": "0"
+            },
+            {
+              "name": "tx_nbmaklertool_pi1[preis]",
+              "value": "0"
+            },
+            {
+              "name": "button_se",
+              "value": "Treffer anzeigen"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
           }
-        ]
-      ]
+        }
+      },
+      "name": "Fetch Harry Gerlach",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-240, 64],
+      "id": "4d73d00d-c2ac-4db7-8f68-ac1e75873984"
     },
-    "Interval Trigger": {
-      "main": [
-        [
-          {
-            "node": "Fetch Listings",
-            "type": "main",
-            "index": 0
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.data;\nconst BASE_URL = 'https://www.harry-gerlach.de/';\n\nfunction decode(str) {\n  return str\n    .replace(/&szlig;/g, 'ß').replace(/&uuml;/g, 'ü').replace(/&ouml;/g, 'ö')\n    .replace(/&auml;/g, 'ä').replace(/&Uuml;/g, 'Ü').replace(/&Ouml;/g, 'Ö')\n    .replace(/&Auml;/g, 'Ä').replace(/&amp;/g, '&').replace(/&sup2;/g, '²')\n    .replace(/&nbsp;/g, ' ').trim();\n}\n\nconst staticData = $getWorkflowStaticData('global');\nconst seen = new Set(staticData.seenHarryGerlachIds ?? []);\n\nconst parts = html.split('class=\"card card--object\"');\nconst newListings = [];\n\nfor (const card of parts.slice(1)) {\n  const exposeMatch = card.match(/Expos[^<]*<\\/dt>\\s*<dd[^>]*>([^<]+)<\\/dd>/);\n  if (!exposeMatch) continue;\n  const id = exposeMatch[1].trim();\n  if (seen.has(id)) continue;\n\n  const titleMatch = card.match(/itemprop=\"name\">([^<]+)<\\/h2>/);\n  const title = titleMatch ? decode(titleMatch[1]) : '';\n\n  const addressMatch = card.match(/card--short-info[^>]*>\\s*<p>([^<]+)<\\/p>/);\n  const address = addressMatch ? decode(addressMatch[1]) : '';\n\n  const roomsMatch = card.match(/class=\"data__title rooms\"[^>]*>[^<]*<\\/dt>\\s*<dd[^>]*>(\\d+)/);\n  const rooms = roomsMatch ? roomsMatch[1] : '?';\n\n  const sizeMatch = card.match(/class=\"data__title larea\"[^>]*>[^<]*<\\/dt>\\s*<dd[^>]*>(\\d+)/);\n  const size = sizeMatch ? sizeMatch[1] : '?';\n\n  const urlMatch = card.match(/class=\"media\"[^>]*href=\"([^\"]+)\"/);\n  const url = urlMatch ? BASE_URL + urlMatch[1] : BASE_URL + 'wohnung-mieten-berlin/';\n\n  newListings.push({ id, title, address, rooms, size, url });\n}\n\nstaticData.seenHarryGerlachIds = [...seen, ...newListings.map(l => l.id)].slice(-500);\n\nif (newListings.length === 0) return [];\n\nreturn newListings.map(({ id, title, address, rooms, size, url }) => ({\n  json: { id, title, address, rooms, size, price: 'k.A.', url }\n}));"
+      },
+      "name": "Parse Harry Gerlach",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-16, 64],
+      "id": "8fdbc939-e4b6-476d-b2d4-ed3da20ac028"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.berlinhaus.com/wp-admin/admin-ajax.php",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; apartment-alert/1.0)"
+            },
+            {
+              "name": "X-Requested-With",
+              "value": "XMLHttpRequest"
+            },
+            {
+              "name": "Referer",
+              "value": "https://www.berlinhaus.com/mietangebote"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "frymo_render_listing_widget"
+            },
+            {
+              "name": "listing_config[post_id]",
+              "value": "35"
+            },
+            {
+              "name": "listing_config[widget_id]",
+              "value": "17838a3"
+            },
+            {
+              "name": "listing_config[query_id]",
+              "value": "test"
+            },
+            {
+              "name": "frymo_query",
+              "value": "{\"test\":{\"location\":\"702\",\"type\":\"wohnung\",\"price_to\":\"800\",\"rooms_from\":\"2\"}}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
           }
-        ]
-      ]
-    }
-  },
-  "pinData": {},
-  "meta": {
-    "instanceId": "3e42fa0095d2c1a000a8ccfa8117c7c9b66f81e9c1e119b5685df98bc3470ce8"
-  }
-}        "url": "https://www.deutsche-wohnen.com/api/deuwo-real-estate/list?limit=15&latitude=52.503641153982585&longitude=13.388082683086395&geoLocation=1&rentType=miete&perimeter=4&immoType=wohnung&priceMax=800&sizeMin=45&min Rooms=0&floor=Beliebig&bathtub=0&bathwindow=0&bathshower=0&furnished=0&kitchenEBK=0&toiletSeparate=0&disabilityAccess=egal&seniorFriendly=0&balcony=ja&parkingCarport=0&parkingStellplatz=0&parkingGarage=0&park ingTiefgarage=0&subsidizedHousingPermit=egal&locationDisplay=Berlin, Kreuzberg&dataSet=",
+        }
+      },
+      "name": "Fetch BerlinHaus",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-240, 256],
+      "id": "4aa91af3-a127-42e1-a4bf-3fccf7ebb96c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.data;\n\nconst staticData = $getWorkflowStaticData('global');\nconst seen = new Set(staticData.seenBerlinHausIds ?? []);\n\nconst jsonLdMatch = html.match(/<script type=\"application[/]ld[+]json\">([\\s\\S]*?)<[/]script>/);\nif (!jsonLdMatch) return [];\n\nconst jsonLd = JSON.parse(jsonLdMatch[1]);\nconst items = jsonLd.itemListElement ?? [];\n\nconst itemsByUrl = {};\nfor (const item of items) {\n  itemsByUrl[item.url] = item.name;\n}\n\nconst newListings = [];\nfor (const article of html.split('<article ').slice(1)) {\n  const urlMatch = article.match(/href=\"([^\"]+)\" aria-label=/);\n  if (!urlMatch) continue;\n  const url = urlMatch[1];\n  if (!itemsByUrl[url]) continue;\n\n  const id = url;\n  if (seen.has(id)) continue;\n\n  const title = itemsByUrl[url];\n\n  const priceMatch = article.match(/frymo-listing-price-value\">(\\d[\\d,.]+)/);\n  const price = priceMatch ? priceMatch[1] : 'k.A.';\n\n  const roomsMatch = article.match(/frymo-listing-rooms[\\s\\S]*?meta-item-value\">(\\d+)/);\n  const rooms = roomsMatch ? roomsMatch[1] : '?';\n\n  const areaMatch = article.match(/frymo-listing-area[\\s\\S]*?meta-item-value\">(\\d[\\d,.]+)/);\n  const size = areaMatch ? areaMatch[1].replace(',', '.') : '?';\n\n  const locationMatch = article.match(/frymo-listing-location[^>]*><[^>]+>([^<]+)<[/]div>/);\n  const address = locationMatch ? locationMatch[1].trim() : '';\n\n  newListings.push({ id, title, url, price, rooms, size, address });\n}\n\nstaticData.seenBerlinHausIds = [...seen, ...newListings.map(l => l.id)].slice(-500);\n\nif (newListings.length === 0) return [];\n\nreturn newListings.map(({ id, title, url, price, rooms, size, address }) => ({\n  json: { id, title, url, price, rooms, size, address }\n}));"
+      },
+      "name": "Parse BerlinHaus",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-16, 256],
+      "id": "050cf0c7-291c-48ca-b346-7b5fd1690943"
+    },
+    {
+      "parameters": {
+        "url": "https://www.deutsche-wohnen.com/api/deuwo-real-estate/list?limit=15&latitude=52.503641153982585&longitude=13.388082683086395&geoLocation=1&rentType=miete&perimeter=4&immoType=wohnung&priceMax=800&sizeMin=45&min Rooms=0&floor=Beliebig&bathtub=0&bathwindow=0&bathshower=0&furnished=0&kitchenEBK=0&toiletSeparate=0&disabilityAccess=egal&seniorFriendly=0&balcony=ja&parkingCarport=0&parkingStellplatz=0&parkingGarage=0&park ingTiefgarage=0&subsidizedHousingPermit=egal&locationDisplay=Berlin, Kreuzberg&dataSet=",
         "options": {
           "response": {
             "response": {
@@ -154,92 +211,57 @@
           }
         }
       },
-      "name": "Fetch Listings",
+      "name": "Fetch Deutsche Wohnen",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [224, 0],
-      "id": "691fc042-4f06-4a3b-a66a-28b9f5d79a3f"
+      "position": [-240, -144],
+      "id": "37f3cafb-13cd-4cef-a5f5-164a35d42db7"
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst listings = data.results ?? [];\n\nconst staticData = $getWorkflowStaticData('global');\nconst seen = new Set(staticData.seenIds ?? []);\n\nconst newListings = listings\n  .filter(item => !seen.has(String(item.wrk_id)))\n  .map(item => ({ id: String(item.wrk_id), item }));\n\n// Persist updated seen set (cap at 500)\nstaticData.seenIds = [...seen, ...newListings.map(l => l.id)].slice(-500);\n\nif (newListings.length === 0) return [];\n\nreturn newListings.map(({ id, item }) => ({\n  json: {\n    id,\n    title: item.titel,\n    price: item.preis.toFixed(2),\n    size: item.groesse,\n    rooms: item.anzahl_zimmer,\n    address: `${item.strasse}, ${item.plz} ${item.ort}`,\n    url: `https://www.deutsche-wohnen.com/mieten/mietangebote/${item.slug}`,\n  }\n}));"
+        "jsCode": "const data = $input.first().json;\nconst listings = data.results ?? [];\n\nconst staticData = $getWorkflowStaticData('global');\nconst seen = new Set(staticData.seenIds ?? []);\n\nconst newListings = listings\n  .filter(item => !seen.has(String(item.wrk_id)))\n  .map(item => ({ id: String(item.wrk_id), item }));\n\nstaticData.seenIds = [...seen, ...newListings.map(l => l.id)].slice(-500);\n\nif (newListings.length === 0) return [];\n\nreturn newListings.map(({ id, item }) => ({\n  json: {\n    id,\n    title: item.titel,\n    price: item.preis.toFixed(2),\n    size: item.groesse,\n    rooms: item.anzahl_zimmer,\n    address: `${item.strasse}, ${item.plz} ${item.ort}`,\n    url: `https://www.deutsche-wohnen.com/mieten/mietangebote/${item.slug}`,\n  }\n}));"
       },
-      "name": "Find New Listings",
-      "position": [448, 0],
-      "id": "2cdc4ac2-bfbf-4ea6-bf61-3d30a5c9e59e"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://n.jrdn.cx/wohnungen",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Title",
-              "value": "=Neue Wohnung: {{ $json.title }}"
-            },
-            {
-              "name": "Priority",
-              "value": "high"
-            },
-            {
-              "name": "Tags",
-              "value": "house"
-            },
-            {
-              "name": "Click",
-              "value": "={{ $json.url }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "Basic REPLACE_WITH_BASE64_USER_PASS"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "text/plain",
-        "body": "={{ $json.rooms }} Zi · {{ $json.size }} m² · {{ $json.price }} €\n{{ $json.address }}\n{{ $json.url }}",
-        "options": {}
-      },
-      "name": "Notify via Ntfy",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [672, 0],
-      "id": "e07f4fc8-1c97-4ab0-a8cf-8ab44e39df7f"
-    },
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 15
-            }
-          ]
-        }
-      },
-      "name": "Interval Trigger",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [0, 0],
-      "id": "352d9c57-bbfd-4aa1-b7cd-c967cc1a20a1"
+      "name": "Parse Deutsche Wohnen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-16, -144],
+      "id": "f4db3998-6224-4732-b424-45cfb25783c3"
     }
   ],
   "connections": {
-    "Fetch Listings": {
+    "Interval Trigger": {
       "main": [
         [
           {
-            "node": "Find New Listings",
+            "node": "Fetch Deutsche Wohnen",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Harry Gerlach",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch BerlinHaus",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Find New Listings": {
+    "Fetch Harry Gerlach": {
+      "main": [
+        [
+          {
+            "node": "Parse Harry Gerlach",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Harry Gerlach": {
       "main": [
         [
           {
@@ -250,11 +272,44 @@
         ]
       ]
     },
-    "Interval Trigger": {
+    "Fetch BerlinHaus": {
       "main": [
         [
           {
-            "node": "Fetch Listings",
+            "node": "Parse BerlinHaus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse BerlinHaus": {
+      "main": [
+        [
+          {
+            "node": "Notify via Ntfy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Deutsche Wohnen": {
+      "main": [
+        [
+          {
+            "node": "Parse Deutsche Wohnen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Deutsche Wohnen": {
+      "main": [
+        [
+          {
+            "node": "Notify via Ntfy",
             "type": "main",
             "index": 0
           }
@@ -266,3 +321,4 @@
   "meta": {
     "instanceId": "3e42fa0095d2c1a000a8ccfa8117c7c9b66f81e9c1e119b5685df98bc3470ce8"
   }
+}
