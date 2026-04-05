@@ -17,6 +17,7 @@
   systemd.tmpfiles.rules = [
     "d /media 0775 jellyfin jellyfin -"
     "d /media/movies 0775 jellyfin jellyfin -"
+    "d /media/documentaries 0775 jellyfin jellyfin -"
     "d /media/tv 0775 jellyfin jellyfin -"
     "d /media/music 0775 jellyfin jellyfin -"
   ];
