@@ -16,6 +16,7 @@
     ../../services/n8n.nix
     ../../services/ollama.nix
     ../../services/ntfy.nix
+    ../../services/jellyfin.nix
     ../../services/reverse-proxy.nix
   ];
 
