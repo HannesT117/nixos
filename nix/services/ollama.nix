@@ -20,6 +20,7 @@ in
     enable = true;
     host = "127.0.0.1";
     port = 11434;
+    loadModels = [ "phi3:mini" ];
   };
 
   # Disable DynamicUser so impermanence can persist /var/lib/ollama directly.
