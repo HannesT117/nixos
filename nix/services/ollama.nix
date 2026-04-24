@@ -39,8 +39,8 @@ in
 
     MemoryMax = "8G";
 
-    IPAddressAllow = "localhost";
-    IPAddressDeny = "any";
+    # ollama needs outbound HTTPS for model pulls.
+    # Inbound access is restricted by binding to 127.0.0.1 only.
   };
 
   systemd.tmpfiles.rules = [
