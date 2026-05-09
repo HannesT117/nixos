@@ -169,7 +169,7 @@ in
           mkdir -p "$EXPORT_DIR" "$BACKUP_DIR"
 
           # Export all documents (runs as root — needs read access to paperless DB)
-          /var/lib/paperless/paperless-manage document_exporter "$EXPORT_DIR"
+          paperless-manage document_exporter "$EXPORT_DIR"
 
           # Incremental rsync with hard-link dedup
           rsync -a --delete \
