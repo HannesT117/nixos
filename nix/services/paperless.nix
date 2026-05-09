@@ -167,6 +167,7 @@ in
           TIMESTAMP=$(date "+%Y-%m-%dT%H-%M-%S")
 
           mkdir -p "$EXPORT_DIR" "$BACKUP_DIR"
+          chown paperless:paperless "$EXPORT_DIR"
 
           # Export all documents (runs as root — needs read access to paperless DB)
           /run/current-system/sw/bin/paperless-manage document_exporter "$EXPORT_DIR"
