@@ -1,7 +1,22 @@
 { config, pkgs, lib, ... }:
 
+let
+  onlyCaddy = "meta skuid != caddy";
+in
 {
-  services.caddy = {
+  options.homelab.caddy.onlyCaddy = lib.mkOption {
+    type = lib.types.str;
+    readOnly = true;
+    description = ''
+      nftables match for traffic from any user other than caddy. Use it in
+      output rules that restrict a loopback port to Caddy; the build-time
+      ruleset check swaps it for a user that exists in the build sandbox.
+    '';
+  };
+
+  config.homelab.caddy.onlyCaddy = onlyCaddy;
+
+  config.services.caddy = {
     enable = true;
 
     # Caddy built with the Porkbun DNS plugin for DNS-01 ACME challenges.
@@ -27,10 +42,23 @@
     virtualHosts."auth.jrdn.cx".extraConfig = "reverse_proxy localhost:9091";
   };
 
-  systemd.services.caddy.serviceConfig.EnvironmentFile = "/persist/secrets/porkbun-credentials";
+  config.systemd.services.caddy.serviceConfig.EnvironmentFile = "/persist/secrets/porkbun-credentials";
 
-  # Firewall
-  networking.firewall.extraInputRules = ''
+  config.networking.firewall.extraInputRules = ''
     iifname "tailscale0" tcp dport { 80, 443 } accept
+  '';
+
+  config.networking.nftables.tables.caddy-admin-local = {
+    family = "inet";
+    content = ''
+      chain output {
+        type filter hook output priority filter; policy accept;
+        oifname "lo" tcp dport 2019 ct state new ${onlyCaddy} reject with tcp reset
+      }
+    '';
+  };
+
+  config.networking.nftables.preCheckRuleset = ''
+    sed -i 's/${onlyCaddy}/meta skuid != root/' ruleset.conf
   '';
 }

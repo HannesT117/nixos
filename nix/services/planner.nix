@@ -4,7 +4,6 @@ let
   port = "2719";
   app = ../../apps/planner;
   python = pkgs.python3.withPackages (ps: [ ps.marimo ps.polars ]);
-  localClients = "meta skuid != caddy";
   backupDir = "/var/lib/syncthing/planner-backup";
 in
 {
@@ -61,13 +60,10 @@ in
     content = ''
       chain output {
         type filter hook output priority filter; policy accept;
-        oifname "lo" tcp dport ${port} ct state new ${localClients} reject with tcp reset
+        oifname "lo" tcp dport ${port} ct state new ${config.homelab.caddy.onlyCaddy} reject with tcp reset
       }
     '';
   };
-  networking.nftables.preCheckRuleset = ''
-    sed -i 's/${localClients}/meta skuid != root/' ruleset.conf
-  '';
 
   systemd.services.planner-backup = {
     description = "Back up the planner database to syncthing";
