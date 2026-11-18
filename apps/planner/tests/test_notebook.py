@@ -3,6 +3,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from budget import missing_settings, scenario_results
 from store import connect, load_settings, save_rows, set_setting
 
@@ -26,7 +28,10 @@ def test_refuses_without_planner_db():
     assert b"PLANNER_DB is not set" in result.stderr
 
 
-def test_runs_on_populated_db(tmp_path):
+TABS = ["Overview", "Expenses", "Trips", "Settings", "Tax details"]
+
+
+def populated_db(tmp_path):
     path = str(tmp_path / "p.sqlite")
     conn = connect(path)
     scenarios = save_rows(
@@ -70,8 +75,44 @@ def test_runs_on_populated_db(tmp_path):
     }.items():
         set_setting(conn, field, value)
     conn.close()
-    result = run({**os.environ, "PLANNER_DB": path})
+    return path
+
+
+def test_runs_on_populated_db(tmp_path):
+    result = run({**os.environ, "PLANNER_DB": populated_db(tmp_path)})
     assert result.returncode == 0, result.stderr.decode()
+
+
+@pytest.mark.parametrize("tab", TABS)
+def test_every_tab_runs_on_populated_db(tmp_path, tab):
+    env = {**os.environ, "PLANNER_DB": populated_db(tmp_path), "PLANNER_START_TAB": tab}
+    result = run(env)
+    assert result.returncode == 0, result.stderr.decode()
+
+
+@pytest.mark.parametrize("tab", TABS)
+def test_failing_cell_on_a_tab_fails_the_run(tmp_path, tab):
+    source = (APP_DIR / "planner.py").read_text().replace(
+        'if __name__ == "__main__":',
+        "@app.cell\n"
+        "def _(get_tab, mo):\n"
+        f'    mo.stop(get_tab() != "{tab}")\n'
+        '    raise RuntimeError("deliberate")\n\n\n'
+        'if __name__ == "__main__":',
+    )
+    script = tmp_path / "planner_failing.py"
+    script.write_text(source)
+    env = {
+        **os.environ,
+        "PLANNER_DB": populated_db(tmp_path),
+        "PLANNER_START_TAB": tab,
+        "PYTHONPATH": str(APP_DIR),
+    }
+    result = subprocess.run(
+        [sys.executable, str(script)], cwd=tmp_path, env=env, capture_output=True
+    )
+    assert result.returncode != 0
+    assert b"deliberate" in result.stderr
 
 
 def test_runs_with_medicare_levy_false(tmp_path):

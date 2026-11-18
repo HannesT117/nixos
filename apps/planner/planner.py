@@ -83,6 +83,8 @@ def _(budget):
 
 @app.cell
 def _(conn, mo, store):
+    import os
+
     get_scenarios, set_scenarios = mo.state(
         store.load(conn, "scenarios"), allow_self_loops=True
     )
@@ -91,7 +93,7 @@ def _(conn, mo, store):
     )
     get_trips, set_trips = mo.state(store.load(conn, "trips"), allow_self_loops=True)
     get_settings, set_settings = mo.state(store.load_settings(conn))
-    get_tab, set_tab = mo.state("Overview")
+    get_tab, set_tab = mo.state(os.environ.get("PLANNER_START_TAB", "Overview"))
     get_error, set_error = mo.state(None)
     return (
         get_error,
