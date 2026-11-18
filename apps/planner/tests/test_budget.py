@@ -1,8 +1,11 @@
 from dataclasses import replace
+from datetime import date
 
 import pytest
 
 from budget import (
+    LEAVE_LOADING_RATE,
+    LEAVE_LOADING_WEEKS,
     PERIODS,
     ExpenseTotals,
     Settings,
@@ -10,12 +13,17 @@ from budget import (
     valid_weeks_per_trip,
     expense_totals,
     is_done,
+    leave_loading,
+    missing_settings,
     per_week,
+    reference_date,
+    salary_on,
+    salary_steps,
     scenario_results,
     trip_summary,
     trip_total,
 )
-from tax import RATES, TaxSettings, tax
+from tax import RATES, TAX_YEAR, TaxSettings, tax
 
 
 def test_per_week_factors():
@@ -71,7 +79,8 @@ def test_scenario_results_requires_complete_settings():
 
 
 SETTINGS = Settings(yearly_gross=80_000, pays_per_year=26, super_rate=0.12, include_medicare_levy=False,
-                    mls="none", savings_target_week=200, weeks_per_trip=2, baseline_scenario_id=1)
+                    mls="none", savings_target_week=200, weeks_per_trip=2, baseline_scenario_id=1,
+                    include_leave_loading=False)
 
 
 def test_scenario_matches_tax_module_and_rules():
@@ -108,3 +117,98 @@ def test_empty_scenarios_with_complete_settings():
 def test_family_mls_requires_partner_income_and_children():
     with pytest.raises(ValueError, match="partner_income.*children"):
         scenario_results([], replace(SETTINGS, mls="family"), 0)
+
+
+SCALE = [
+    {"step": "A.1", "effective_from": "2026-03-01", "annual": 100_000},
+    {"step": "A.1", "effective_from": "2027-03-01", "annual": 103_500},
+    {"step": "A.2", "effective_from": "2026-03-01", "annual": 110_000},
+]
+TODAY = date(2026, 11, 19)
+PLAIN = {"id": 1, "name": "a", "sacrifice_per_pay": 100, "after_tax_per_pay": 0}
+
+
+def test_salary_on_picks_latest_effective_rate():
+    assert salary_on(SCALE, "A.1", date(2026, 11, 19)) == 100_000
+    assert salary_on(SCALE, "A.1", date(2027, 3, 1)) == 103_500
+    with pytest.raises(ValueError):
+        salary_on(SCALE, "A.1", date(2026, 2, 28))
+    with pytest.raises(ValueError, match="no salary for step B.1 on 2026-11-19"):
+        salary_on(SCALE, "B.1", date(2026, 11, 19))
+
+
+def test_reference_date():
+    d = date(2026, 11, 19)
+    assert reference_date(2027, d) == date(2027, 3, 1)
+    assert reference_date(None, d) == d
+
+
+def test_leave_loading():
+    assert (LEAVE_LOADING_RATE, LEAVE_LOADING_WEEKS) == (0.175, 4)
+    assert leave_loading(52_000) == pytest.approx(700)
+
+
+def test_tax_year_is_exposed():
+    assert TAX_YEAR == "2026-27"
+
+
+def test_salary_steps_sorted_naturally():
+    rows = [{"step": s, "effective_from": "2026-03-01", "annual": 1} for s in ["A.10", "A.2", "A.2"]]
+    assert salary_steps(rows) == ["A.2", "A.10"]
+
+
+def test_missing_settings_requires_leave_loading():
+    assert "include_leave_loading" in missing_settings(replace(SETTINGS, include_leave_loading=None))
+    assert "include_leave_loading" not in missing_settings(SETTINGS)
+
+
+def test_salary_step_replaces_yearly_gross_requirement():
+    no_gross = replace(SETTINGS, yearly_gross=None)
+    assert "yearly_gross" in missing_settings(no_gross)
+    assert "yearly_gross" not in missing_settings(replace(no_gross, salary_step="A.1"))
+
+
+def test_scenario_uses_settings_step_today_with_loading():
+    s = replace(SETTINGS, yearly_gross=None, salary_step="A.1", include_leave_loading=True)
+    [r] = scenario_results([PLAIN], s, 0, SCALE, TODAY)
+    loading = 100_000 / 52 * 4 * 0.175
+    assert r.salary == 100_000
+    assert r.leave_loading == pytest.approx(loading)
+    assert r.gross == pytest.approx(100_000 + loading)
+    assert r.taxable == pytest.approx(r.gross - 2600)
+    assert r.employer_super == 12_000
+
+
+def test_scenario_year_uses_march_rate():
+    s = replace(SETTINGS, salary_step="A.1")
+    [r] = scenario_results([{**PLAIN, "year": 2027}], s, 0, SCALE, TODAY)
+    assert (r.salary, r.year, r.salary_step) == (103_500, 2027, "A.1")
+
+
+def test_scenario_own_step_overrides_settings():
+    s = replace(SETTINGS, salary_step="A.1")
+    [r] = scenario_results([{**PLAIN, "salary_step": "A.2"}], s, 0, SCALE, TODAY)
+    assert r.salary == 110_000 and r.salary_step == "A.2"
+
+
+def test_blank_scenario_step_falls_back_to_settings():
+    s = replace(SETTINGS, salary_step="A.1")
+    [r] = scenario_results([{**PLAIN, "salary_step": ""}], s, 0, SCALE, TODAY)
+    assert r.salary == 100_000
+
+
+def test_manual_gross_without_step():
+    [r] = scenario_results([{**PLAIN, "year": 2030}], SETTINGS, 0, SCALE, TODAY)
+    assert r.salary == 80_000 and r.leave_loading == 0 and r.gross == 80_000
+
+
+def test_manual_gross_gets_leave_loading():
+    s = replace(SETTINGS, include_leave_loading=True)
+    [r] = scenario_results([PLAIN], s, 0, SCALE, TODAY)
+    assert r.salary == 80_000
+    assert r.gross == pytest.approx(80_000 + leave_loading(80_000))
+
+
+def test_unknown_step_raises_with_scenario_name():
+    with pytest.raises(ValueError, match="scenario a: no salary for step B.9"):
+        scenario_results([{**PLAIN, "salary_step": "B.9"}], SETTINGS, 0, SCALE, TODAY)

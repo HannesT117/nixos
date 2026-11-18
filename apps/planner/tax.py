@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+TAX_YEAR = "2026-27"
+
 RATES = {
     "tax_brackets": [(0, 0.0), (18_200, 0.15), (45_000, 0.30), (135_000, 0.37), (190_000, 0.45)],
     "medicare_levy": 0.02,

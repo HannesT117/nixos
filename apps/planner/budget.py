@@ -1,10 +1,14 @@
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
+from datetime import date
 from typing import Optional
 
 from tax import RATES, TaxSettings, tax
 
 WEEKS_PER_YEAR = 52
+LEAVE_LOADING_RATE = 0.175
+LEAVE_LOADING_WEEKS = 4
+SCALE_YEAR_START_MONTH = 3
 
 PERIODS: dict[str, float] = {
     "Weekly": 1,
@@ -81,18 +85,47 @@ class Settings:
 
 
 ALWAYS_REQUIRED = (
-    "yearly_gross",
     "pays_per_year",
     "super_rate",
     "include_medicare_levy",
     "mls",
     "savings_target_week",
     "weeks_per_trip",
+    "include_leave_loading",
 )
+
+
+def leave_loading(annual: float) -> float:
+    return annual / WEEKS_PER_YEAR * LEAVE_LOADING_WEEKS * LEAVE_LOADING_RATE
+
+
+def reference_date(year: Optional[int], today: date) -> date:
+    return today if year is None else date(year, SCALE_YEAR_START_MONTH, 1)
+
+
+def salary_on(rates: Sequence[Mapping], step: str, on: date) -> float:
+    effective = [
+        (r["effective_from"], r["annual"])
+        for r in rates
+        if r["step"] == step and r["effective_from"] <= on.isoformat()
+    ]
+    if not effective:
+        raise ValueError(f"no salary for step {step} on {on.isoformat()}")
+    return max(effective)[1]
+
+
+def _step_key(step: str) -> list[tuple[int, int, str]]:
+    return [(0, int(p), "") if p.isdigit() else (1, 0, p) for p in step.split(".")]
+
+
+def salary_steps(rates: Sequence[Mapping]) -> list[str]:
+    return sorted({r["step"] for r in rates}, key=_step_key)
 
 
 def missing_settings(s: Settings) -> list[str]:
     required = list(ALWAYS_REQUIRED)
+    if s.salary_step is None:
+        required.insert(0, "yearly_gross")
     if s.mls == "family":
         required += ["partner_income", "children"]
     return [name for name in required if getattr(s, name) is None]
@@ -123,13 +156,27 @@ class ScenarioResult:
     expenses_week: float
     cash_savings_week: float
     rest_week: float
+    year: Optional[int]
+    salary_step: Optional[str]
+    salary: float
+    leave_loading: float
+    gross: float
 
 
-def _scenario(sc: Mapping, s: Settings, total_week: float) -> ScenarioResult:
+def _scenario(
+    sc: Mapping, s: Settings, total_week: float, salary_rates: Sequence[Mapping], today: date
+) -> ScenarioResult:
     pays = s.pays_per_year
+    year = sc.get("year")
+    step = sc.get("salary_step") or s.salary_step
+    salary = (
+        salary_on(salary_rates, step, reference_date(year, today)) if step else s.yearly_gross
+    )
+    loading = leave_loading(salary) if s.include_leave_loading else 0.0
+    gross = salary + loading
     sacrifice = sc["sacrifice_per_pay"] * pays
     after_tax = sc["after_tax_per_pay"] * pays
-    taxable = s.yearly_gross - sacrifice
+    taxable = gross - sacrifice
     tax_settings = TaxSettings(
         s.include_medicare_levy,
         s.mls,
@@ -141,7 +188,7 @@ def _scenario(sc: Mapping, s: Settings, total_week: float) -> ScenarioResult:
     net_week = net_year / WEEKS_PER_YEAR
     super_gain_year = sacrifice * (1 - RATES["contributions_tax"]) + after_tax
     super_gain_week = super_gain_year / WEEKS_PER_YEAR
-    employer_super = s.yearly_gross * s.super_rate
+    employer_super = salary * s.super_rate
     concessional_total = employer_super + sacrifice
     limit = RATES["fhss_year_limit"]
     sacrifice_released = min(sacrifice, limit)
@@ -173,14 +220,31 @@ def _scenario(sc: Mapping, s: Settings, total_week: float) -> ScenarioResult:
         expenses_week=total_week,
         cash_savings_week=cash_savings_week,
         rest_week=net_week - total_week - cash_savings_week,
+        year=year,
+        salary_step=step,
+        salary=salary,
+        leave_loading=loading,
+        gross=gross,
     )
 
 
-def scenario_results(scenarios: list[Mapping], s: Settings, total_week: float) -> list[ScenarioResult]:
+def scenario_results(
+    scenarios: list[Mapping],
+    s: Settings,
+    total_week: float,
+    salary_rates: Sequence[Mapping] = (),
+    today: Optional[date] = None,
+) -> list[ScenarioResult]:
     missing = missing_settings(s)
     if missing:
         raise ValueError(f"Missing settings: {', '.join(missing)}")
-    results = [_scenario(sc, s, total_week) for sc in scenarios]
+    today = today or date.today()
+    results = []
+    for sc in scenarios:
+        try:
+            results.append(_scenario(sc, s, total_week, salary_rates, today))
+        except ValueError as e:
+            raise ValueError(f"scenario {sc['name']}: {e}") from e
     baseline = next((r for r in results if r.id == s.baseline_scenario_id), None)
     if baseline is None:
         return results
