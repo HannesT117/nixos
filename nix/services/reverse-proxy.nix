@@ -7,7 +7,7 @@
     # Caddy built with the Porkbun DNS plugin for DNS-01 ACME challenges.
     package = pkgs.caddy.withPlugins {
       plugins = [ "github.com/caddy-dns/porkbun@v0.3.1" ];
-      hash = "sha256-Pb27UcjTRfGCmcCAvSZtaXNPANyeH46MeCw3APPv9uI=";
+      hash = "sha256-8DrezGjdIUq9tBvbK7UuVDeQPuzUdBsmIkI79YDCTOQ=";
     };
 
     # Use DNS-01 challenge globally, credentials injected via EnvironmentFile
