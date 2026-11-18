@@ -1,7 +1,20 @@
-{ inputs, pkgs, config, ... }:
+{ inputs, pkgs, lib, config, ... }:
 
 let
   clientAddresses = [ "100.64.0.1" "fd7a:115c:a1e0::1" ];
+
+  claudeConfigFiles = [
+    "AGENTS.md"
+    "agents/architecture-critic.md"
+    "agents/logic-critic.md"
+    "rules/architecture.md"
+    "rules/code-comments.md"
+    "rules/fixing-bugs.md"
+    "rules/handoffs.md"
+    "rules/pr-conventions.md"
+    "rules/skill-routing.md"
+    "skills/retro/SKILL.md"
+  ];
 in
 {
   imports = [ inputs.rex.nixosModules.default ];
@@ -45,6 +58,38 @@ in
       OOMPolicy = "continue";
       TasksMax = 512;
     };
+  };
+
+  systemd.services.rex-claude-config = {
+    description = "Copy allowlisted Claude config from dotfiles into the rex account";
+    wantedBy = [ "multi-user.target" "rex.service" ];
+    before = [ "rex.service" ];
+    unitConfig.RequiresMountsFor = [ "/etc/dotfiles" "/var/lib/rex" ];
+    path = [ pkgs.coreutils ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      User = "rex";
+      Group = "rex";
+      ProtectSystem = "strict";
+      ReadWritePaths = [ "/var/lib/rex" ];
+      ProtectHome = true;
+      PrivateTmp = true;
+      PrivateNetwork = true;
+      NoNewPrivileges = true;
+      CapabilityBoundingSet = "";
+    };
+    script = ''
+      src=/etc/dotfiles/shared/.claude
+      dst=/var/lib/rex/.claude
+      for f in ${lib.escapeShellArgs claudeConfigFiles}; do
+        if [ ! -f "$src/$f" ]; then
+          echo "missing in dotfiles: $f" >&2
+          continue
+        fi
+        install -D -m 0644 "$src/$f" "$dst/$f"
+      done
+    '';
   };
 
   networking.firewall.extraInputRules = ''
