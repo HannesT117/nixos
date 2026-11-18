@@ -99,7 +99,10 @@ def _(conn, mo, store):
         0, allow_self_loops=True
     )
     get_tab, set_tab = mo.state("Overview")
+    get_error, set_error = mo.state(None)
     return (
+        get_error,
+        set_error,
         get_expense_rows_revision,
         get_expenses,
         get_scenarios,
@@ -113,6 +116,31 @@ def _(conn, mo, store):
         set_tab,
         set_trips,
     )
+
+
+@app.cell
+def _(set_error):
+    def guard(table, action):
+        def run(*args):
+            try:
+                result = action(*args)
+            except Exception as error:
+                set_error(f"{table}: {type(error).__name__}: {error}")
+                return None
+            set_error(None)
+            return result
+
+        return run
+
+    return (guard,)
+
+
+@app.cell
+def _(get_error, mo):
+    mo.callout(
+        f"Save failed, change not stored. {get_error()}", kind="danger"
+    ) if get_error() else None
+    return
 
 
 @app.cell
@@ -207,6 +235,7 @@ def _(
     get_expense_rows_revision,
     get_expenses,
     get_tab,
+    guard,
     mo,
     set_expense_rows_revision,
     set_expenses,
@@ -248,6 +277,10 @@ def _(
         def add(_):
             persist([*current(), {"id": None, **defaults}])
             set_expense_rows_revision(lambda n: n + 1)
+
+        on_edit = guard("expenses", on_edit)
+        delete = guard("expenses", delete)
+        add = guard("expenses", add)
 
         lines = [
             {
@@ -295,6 +328,7 @@ def _(
     get_settings,
     get_tab,
     get_trips,
+    guard,
     mo,
     money,
     pl,
@@ -315,8 +349,18 @@ def _(
     }
 
     def _on_change(rows, defaults=_defaults):
-        set_trips(store.save_rows(conn, "trips", get_trips(), clean_rows(rows.to_dicts(), defaults)))
+        set_trips(
+            store.save_rows(
+                conn, "trips", get_trips(), clean_rows(rows.to_dicts(), defaults)
+            )
+        )
 
+    trips_editor = mo.ui.data_editor(
+        pl.DataFrame(get_trips(), schema=_schema),
+        editable_columns=_columns,
+        on_change=guard("trips", _on_change),
+        label="Trips (a trip counts once its fuel price is set, 0 included)",
+    )
     if weeks_per_trip_ok(_settings):
         _summary = budget.trip_summary(get_trips(), _settings.weeks_per_trip)
         _cards = mo.hstack(
@@ -330,47 +374,12 @@ def _(
         )
     else:
         _cards = mo.md("**Set weeks per trip**")
-    mo.vstack(
-        [
-            _cards,
-            mo.ui.data_editor(
-                pl.DataFrame(get_trips(), schema=_schema),
-                editable_columns=_columns,
-                on_change=_on_change,
-                label="Trips (a trip counts once its fuel price is set, 0 included)",
-            ),
-        ]
-    )
-    return
+    mo.vstack([_cards, trips_editor])
+    return (trips_editor,)
 
 
 @app.cell
-def _(clean_rows, conn, get_scenarios, get_tab, mo, pl, set_scenarios, store):
-    mo.stop(get_tab() != "Trips")
-    _defaults = {"name": "", "sacrifice_per_pay": 0, "after_tax_per_pay": 0}
-    _schema = {
-        "id": pl.Int64,
-        "name": pl.Utf8,
-        "sacrifice_per_pay": pl.Float64,
-        "after_tax_per_pay": pl.Float64,
-    }
-
-    def _on_change(rows, defaults=_defaults):
-        set_scenarios(
-            store.save_rows(conn, "scenarios", get_scenarios(), clean_rows(rows.to_dicts(), defaults))
-        )
-
-    mo.ui.data_editor(
-        pl.DataFrame(get_scenarios(), schema=_schema),
-        editable_columns=list(_defaults),
-        on_change=_on_change,
-        label="Scenarios (amounts per pay)",
-    )
-    return
-
-
-@app.cell
-def _(LABELS, conn, get_scenarios, get_tab, mo, set_settings, store):
+def _(LABELS, conn, get_scenarios, get_tab, guard, mo, set_settings, store):
     mo.stop(get_tab() != "Settings")
     _settings = store.load_settings(conn)
 
@@ -379,7 +388,7 @@ def _(LABELS, conn, get_scenarios, get_tab, mo, set_settings, store):
             store.set_setting(conn, field, convert(value))
             set_settings(store.load_settings(conn))
 
-        return handler
+        return guard("settings", handler)
 
     def _number(field, convert=None, **kwargs):
         return mo.ui.number(
@@ -391,9 +400,18 @@ def _(LABELS, conn, get_scenarios, get_tab, mo, set_settings, store):
             **kwargs,
         )
 
+    def _non_negative_int(value):
+        return max(0, int(value))
+
     def _positive(value):
         return float(value) if value and value > 0 else None
 
+    _medicare_options = {"—": None, "Yes": True, "No": False}
+    _medicare_name = next(
+        name
+        for name, flag in _medicare_options.items()
+        if flag is _settings.include_medicare_levy
+    )
     _baseline_options = {
         (s["name"] or f"Scenario {s['id']}"): s["id"] for s in get_scenarios()
     }
@@ -405,42 +423,82 @@ def _(LABELS, conn, get_scenarios, get_tab, mo, set_settings, store):
         ),
         None,
     )
-    mo.vstack(
-        [
-            _number("yearly_gross", step=100),
-            _number("pays_per_year", int, step=1),
-            _number("super_rate", step=0.005),
-            mo.ui.switch(
-                value=bool(_settings.include_medicare_levy),
-                label=LABELS["include_medicare_levy"],
-                on_change=_save("include_medicare_levy", bool),
-            ),
-            mo.ui.dropdown(
-                ["none", "single", "family"],
-                value=_settings.mls,
-                label=LABELS["mls"],
-                allow_select_none=True,
-                on_change=_save("mls"),
-            ),
-            _number("partner_income", step=100),
-            _number("children", int, step=1, start=0),
-            _number("savings_target_week", step=10),
-            mo.ui.number(
-                value=_settings.weeks_per_trip,
-                label=LABELS["weeks_per_trip"],
-                step=0.5,
-                on_change=_save("weeks_per_trip", _positive),
-            ),
-            mo.ui.dropdown(
-                _baseline_options,
-                value=_baseline_name,
-                label=LABELS["baseline_scenario_id"],
-                allow_select_none=True,
-                on_change=_save("baseline_scenario_id"),
-            ),
-        ]
+    settings_controls = [
+        _number("yearly_gross", step=100),
+        _number("pays_per_year", int, step=1),
+        _number("super_rate", step=0.005),
+        mo.ui.dropdown(
+            _medicare_options,
+            value=_medicare_name,
+            label=LABELS["include_medicare_levy"],
+            on_change=_save("include_medicare_levy"),
+        ),
+        mo.ui.dropdown(
+            ["none", "single", "family"],
+            value=_settings.mls,
+            label=LABELS["mls"],
+            allow_select_none=True,
+            on_change=_save("mls"),
+        ),
+        _number("partner_income", step=100),
+        _number("children", _non_negative_int, step=1),
+        _number("savings_target_week", step=10),
+        mo.ui.number(
+            value=_settings.weeks_per_trip,
+            label=LABELS["weeks_per_trip"],
+            step=0.5,
+            on_change=_save("weeks_per_trip", _positive),
+        ),
+        mo.ui.dropdown(
+            _baseline_options,
+            value=_baseline_name,
+            label=LABELS["baseline_scenario_id"],
+            allow_select_none=True,
+            on_change=_save("baseline_scenario_id"),
+        ),
+    ]
+    mo.vstack(settings_controls)
+    return (settings_controls,)
+
+
+@app.cell
+def _(
+    clean_rows,
+    conn,
+    get_scenarios,
+    get_tab,
+    guard,
+    mo,
+    pl,
+    set_scenarios,
+    set_settings,
+    store,
+):
+    mo.stop(get_tab() != "Settings")
+    _defaults = {"name": "", "sacrifice_per_pay": 0, "after_tax_per_pay": 0}
+    _schema = {
+        "id": pl.Int64,
+        "name": pl.Utf8,
+        "sacrifice_per_pay": pl.Float64,
+        "after_tax_per_pay": pl.Float64,
+    }
+
+    def _on_change(rows, defaults=_defaults):
+        set_scenarios(
+            store.save_rows(
+                conn, "scenarios", get_scenarios(), clean_rows(rows.to_dicts(), defaults)
+            )
+        )
+        set_settings(store.load_settings(conn))
+
+    scenarios_editor = mo.ui.data_editor(
+        pl.DataFrame(get_scenarios(), schema=_schema),
+        editable_columns=list(_defaults),
+        on_change=guard("scenarios", _on_change),
+        label="Scenarios (amounts per pay)",
     )
-    return
+    scenarios_editor
+    return (scenarios_editor,)
 
 
 @app.cell
@@ -454,6 +512,7 @@ def _(
     incomplete_message,
     mo,
     money,
+    money_or_dash,
 ):
     mo.stop(get_tab() != "Tax details")
     _settings = get_settings()
@@ -478,6 +537,9 @@ def _(
                 "MLS": money(r.mls),
                 "Total tax": money(r.total_tax),
                 "Net / year": money(r.net_year),
+                "Take-home reduction / week": money_or_dash(
+                    r.takehome_reduction_week
+                ),
                 "Super gain / year": money(r.super_gain_year),
                 "Employer super": money(r.employer_super),
                 "Concessional total": money(r.concessional_total),
