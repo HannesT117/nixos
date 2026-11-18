@@ -66,7 +66,7 @@ in
       "/var/lib/n8n"
       "/var/lib/ollama"
       "/var/lib/jellyfin"
-      "/var/lib/grist-core"
+      { directory = "/var/lib/planner"; user = "planner"; group = "planner"; mode = "0700"; }
       { directory = "/var/lib/rex"; user = "rex"; group = "rex"; mode = "0700"; }
       "/var/lib/authelia-main"
       "/media"
