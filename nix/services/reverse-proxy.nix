@@ -1,5 +1,8 @@
-{ pkgs, lib, ... }:
+{ config, pkgs, lib, ... }:
 
+let
+  grist = config.services.grist.environment;
+in
 {
   services.caddy = {
     enable = true;
@@ -24,7 +27,26 @@
     virtualHosts."n8n.jrdn.cx".extraConfig = "reverse_proxy localhost:5678";
     virtualHosts."n.jrdn.cx".extraConfig = "reverse_proxy localhost:8091";
     virtualHosts."media.jrdn.cx".extraConfig = "reverse_proxy localhost:8096";
-    virtualHosts."money.jrdn.cx".extraConfig = "reverse_proxy localhost:8484";
+    virtualHosts."auth.jrdn.cx".extraConfig = "reverse_proxy localhost:9091";
+    virtualHosts."money.jrdn.cx".extraConfig = ''
+      @apiKey header Authorization "Bearer *"
+      handle @apiKey {
+        request_header -${grist.GRIST_FORWARD_AUTH_HEADER}
+        reverse_proxy localhost:${grist.PORT}
+      }
+
+      handle /${grist.GRIST_FORWARD_AUTH_LOGOUT_PATH} {
+        redir https://auth.jrdn.cx/logout
+      }
+
+      handle {
+        forward_auth localhost:9091 {
+          uri /api/authz/forward-auth
+          copy_headers Remote-User Remote-Groups Remote-Email>${grist.GRIST_FORWARD_AUTH_HEADER} Remote-Name
+        }
+        reverse_proxy localhost:${grist.PORT}
+      }
+    '';
   };
 
   systemd.services.caddy.serviceConfig.EnvironmentFile = "/persist/secrets/porkbun-credentials";

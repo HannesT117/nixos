@@ -18,6 +18,7 @@ Configuration of my GMKtec homeserver. Base Setup:
 | n8n | n8n.jrdn.cx | [nix/services/n8n.md](nix/services/n8n.md) |
 | Ollama | localhost:11434 | [nix/services/ollama.md](nix/services/ollama.md) |
 | Grist | money.jrdn.cx | — |
+| Authelia | auth.jrdn.cx | — |
 
 ## Adding a new service
 

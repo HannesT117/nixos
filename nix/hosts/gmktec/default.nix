@@ -19,6 +19,7 @@
     ../../services/jellyfin.nix
     ../../services/grist.nix
     ../../services/rex.nix
+    ../../services/authelia.nix
     ../../services/reverse-proxy.nix
   ];
 

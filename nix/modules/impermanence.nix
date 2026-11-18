@@ -68,6 +68,7 @@ in
       "/var/lib/jellyfin"
       "/var/lib/grist-core"
       { directory = "/var/lib/rex"; user = "rex"; group = "rex"; mode = "0700"; }
+      "/var/lib/authelia-main"
       "/media"
 
       # Network
