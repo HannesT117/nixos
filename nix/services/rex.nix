@@ -3,18 +3,27 @@
 let
   clientAddresses = [ "100.64.0.1" "fd7a:115c:a1e0::1" ];
 
-  claudeConfigFiles = [
-    "AGENTS.md"
-    "agents/architecture-critic.md"
-    "agents/logic-critic.md"
-    "rules/architecture.md"
-    "rules/code-comments.md"
-    "rules/fixing-bugs.md"
-    "rules/handoffs.md"
-    "rules/pr-conventions.md"
-    "rules/skill-routing.md"
-    "skills/retro/SKILL.md"
+  dotfiles = [
+    ".zshrc"
+    ".claude/AGENTS.md"
+    ".claude/agents/architecture-critic.md"
+    ".claude/agents/logic-critic.md"
+    ".claude/rules/architecture.md"
+    ".claude/rules/code-comments.md"
+    ".claude/rules/fixing-bugs.md"
+    ".claude/rules/handoffs.md"
+    ".claude/rules/pr-conventions.md"
+    ".claude/rules/skill-routing.md"
+    ".claude/skills/retro/SKILL.md"
   ];
+
+  gitconfig = pkgs.writeText "rex-gitconfig" (lib.generators.toGitINI {
+    user = {
+      name = "HannesT117-ai";
+      email = "350678913+HannesT117-ai@users.noreply.github.com";
+    };
+    init.defaultBranch = "main";
+  });
 in
 {
   imports = [ inputs.rex.nixosModules.default ];
@@ -60,8 +69,8 @@ in
     };
   };
 
-  systemd.services.rex-claude-config = {
-    description = "Copy allowlisted Claude config from dotfiles into the rex account";
+  systemd.services.rex-dotfiles = {
+    description = "Copy allowlisted dotfiles into the rex account";
     wantedBy = [ "multi-user.target" "rex.service" ];
     before = [ "rex.service" ];
     unitConfig.RequiresMountsFor = [ "/etc/dotfiles" "/var/lib/rex" ];
@@ -80,15 +89,16 @@ in
       CapabilityBoundingSet = "";
     };
     script = ''
-      src=/etc/dotfiles/shared/.claude
-      dst=/var/lib/rex/.claude
-      for f in ${lib.escapeShellArgs claudeConfigFiles}; do
+      src=/etc/dotfiles/shared
+      dst=/var/lib/rex
+      for f in ${lib.escapeShellArgs dotfiles}; do
         if [ ! -f "$src/$f" ]; then
           echo "missing in dotfiles: $f" >&2
           continue
         fi
         install -D -m 0644 "$src/$f" "$dst/$f"
       done
+      install -m 0644 ${gitconfig} "$dst/.gitconfig"
     '';
   };
 
