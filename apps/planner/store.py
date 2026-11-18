@@ -107,7 +107,11 @@ def save_rows(
                 continue
             before = loaded_by_id[row["id"]]
             if any(before.get(c) != row.get(c) for c in cols):
-                conn.execute(update_sql, [*values, row["id"]])
+                updated = conn.execute(update_sql, [*values, row["id"]])
+                if updated.rowcount == 0:
+                    raise ValueError(
+                        f"{table} row {row['id']} was deleted by another session"
+                    )
             snapshot.append(dict(row))
         for removed in loaded_by_id.keys() - kept_ids:
             conn.execute(f"DELETE FROM {table} WHERE id = ?", (removed,))

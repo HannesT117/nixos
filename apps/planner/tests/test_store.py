@@ -80,6 +80,16 @@ def test_stale_editor_cannot_delete_rows_it_never_loaded(tmp_path):
     ]
 
 
+def test_edit_of_row_deleted_elsewhere_raises_and_rolls_back(tmp_path):
+    conn = connect(str(tmp_path / "p.sqlite"))
+    loaded = save_rows(conn, "expenses", [], [expense("a", 1), expense("b", 2)])
+    save_rows(conn, "expenses", loaded, [loaded[1]])
+    edited = [{**loaded[0], "amount": 7}, {**loaded[1], "amount": 8}]
+    with pytest.raises(ValueError, match=f"expenses.*{loaded[0]['id']}"):
+        save_rows(conn, "expenses", loaded, edited)
+    assert [(r["name"], r["amount"]) for r in load(conn, "expenses")] == [("b", 2)]
+
+
 def test_unknown_id_raises(tmp_path):
     conn = connect(str(tmp_path / "p.sqlite"))
     with pytest.raises(ValueError):
