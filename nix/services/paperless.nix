@@ -8,7 +8,7 @@ let
   classifyScript = pkgs.writeShellScript "paperless-classify" ''
     set -euo pipefail
 
-    DOC_ID="$1"
+    DOC_ID="''${DOCUMENT_ID}"
     BASE="http://localhost:8000"
 
     if [ -z "''${PAPERLESS_API_TOKEN:-}" ]; then
@@ -129,9 +129,9 @@ in
     settings = {
       PAPERLESS_OCR_LANGUAGE = "deu+eng";
       PAPERLESS_OCR_LANGUAGES = "deu eng";
-      PAPERLESS_OCR_SKIP_ARCHIVE_FILE = "with_text";
       PAPERLESS_TIME_ZONE = "Europe/Berlin";
-      PAPERLESS_CONSUMER_POLLING = 60;
+      PAPERLESS_CONSUMER_POLLING_INTERVAL = 60;
+      PAPERLESS_CONSUMER_DELETE_DUPLICATES = true;
       PAPERLESS_ALLOWED_HOSTS = "docs.jrdn.cx,localhost";
       PAPERLESS_CSRF_TRUSTED_ORIGINS = "https://docs.jrdn.cx";
       PAPERLESS_CONSUMER_OWNER = "jo";

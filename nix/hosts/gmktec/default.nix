@@ -28,7 +28,6 @@
   # Boot
   boot.loader.systemd-boot.enable = lib.mkForce false; # Prevent nixOS from installing unsiged EFI binaries
   boot.loader.efi.canTouchEfiVariables = true;
-  boot.initrd.systemd.enable = true;
   boot.initrd.kernelModules = [ "tpm_crb" ];
 
   boot.lanzaboote = {
