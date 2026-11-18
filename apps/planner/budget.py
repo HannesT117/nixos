@@ -76,6 +76,8 @@ class Settings:
     savings_target_week: Optional[float] = None
     weeks_per_trip: Optional[float] = None
     baseline_scenario_id: Optional[int] = None
+    salary_step: Optional[str] = None
+    include_leave_loading: Optional[bool] = None
 
 
 ALWAYS_REQUIRED = (

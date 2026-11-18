@@ -19,11 +19,20 @@ CREATE TABLE settings (id INTEGER PRIMARY KEY CHECK (id = 1), yearly_gross REAL,
   weeks_per_trip REAL CHECK (weeks_per_trip > 0),
   baseline_scenario_id INTEGER REFERENCES scenarios(id) ON DELETE SET NULL);
 INSERT INTO settings (id, pays_per_year) VALUES (1, 26);
-"""
+""",
+    """
+CREATE TABLE salary_levels (id INTEGER PRIMARY KEY, step TEXT NOT NULL,
+  effective_from TEXT NOT NULL CHECK (effective_from GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  annual REAL NOT NULL CHECK (annual > 0), UNIQUE (step, effective_from));
+ALTER TABLE settings ADD COLUMN salary_step TEXT;
+ALTER TABLE settings ADD COLUMN include_leave_loading INTEGER;
+ALTER TABLE scenarios ADD COLUMN year INTEGER CHECK (year IS NULL OR year BETWEEN 2000 AND 2100);
+ALTER TABLE scenarios ADD COLUMN salary_step TEXT;
+""",
 ]
 
 TABLES: dict[str, list[str]] = {
-    "scenarios": ["name", "sacrifice_per_pay", "after_tax_per_pay"],
+    "scenarios": ["name", "sacrifice_per_pay", "after_tax_per_pay", "year", "salary_step"],
     "expenses": ["name", "amount", "period"],
     "trips": [
         "dates",
@@ -36,9 +45,11 @@ TABLES: dict[str, list[str]] = {
         "accommodation",
         "accommodation_price",
     ],
+    "salary_levels": ["step", "effective_from", "annual"],
 }
 
 _SETTING_FIELDS = [f.name for f in dataclasses.fields(Settings)]
+_BOOL_SETTINGS = ("include_medicare_levy", "include_leave_loading")
 
 
 def connect(path: str) -> sqlite3.Connection:
@@ -125,8 +136,9 @@ def save_rows(
 def load_settings(conn: sqlite3.Connection) -> Settings:
     row = dict(conn.execute("SELECT * FROM settings WHERE id = 1").fetchone())
     row.pop("id")
-    if row["include_medicare_levy"] is not None:
-        row["include_medicare_levy"] = bool(row["include_medicare_levy"])
+    for name in _BOOL_SETTINGS:
+        if row[name] is not None:
+            row[name] = bool(row[name])
     return Settings(**row)
 
 

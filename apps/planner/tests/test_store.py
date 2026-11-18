@@ -129,7 +129,11 @@ def test_unchanged_rows_are_not_rewritten(tmp_path):
 def test_trips_and_scenarios_round_trip(tmp_path):
     conn = connect(str(tmp_path / "p.sqlite"))
     for table in ("trips", "scenarios"):
-        row = {c: ("t" if c not in ("sacrifice_per_pay", "after_tax_per_pay") and not c.endswith("_price") else 1.5) for c in TABLES[table]}
+        numeric = {"sacrifice_per_pay", "after_tax_per_pay", "annual"}
+        row = {
+            c: (2030 if c == "year" else 1.5 if c in numeric or c.endswith("_price") else "t")
+            for c in TABLES[table]
+        }
         snap = save_rows(conn, table, [], [{"id": None, **row}])
         assert load(conn, table) == snap
 
@@ -183,3 +187,87 @@ def test_schema_periods_match_budget_periods(tmp_path):
     assert len(load(conn, "expenses")) == len(PERIODS)
     with pytest.raises(sqlite3.IntegrityError):
         save_rows(conn, "expenses", [], [expense("a", 1, period="Daily")])
+
+
+def _v1_db(path):
+    conn = sqlite3.connect(path, isolation_level=None)
+    conn.executescript(MIGRATIONS[0])
+    conn.execute("PRAGMA user_version = 1")
+    conn.execute("INSERT INTO scenarios (name, sacrifice_per_pay, after_tax_per_pay) VALUES ('s', 10, 20)")
+    conn.execute("INSERT INTO expenses (name, amount, period) VALUES ('e', 5, 'Weekly')")
+    conn.execute("INSERT INTO trips (dates, fuel_price) VALUES ('d', 7)")
+    conn.execute("UPDATE settings SET yearly_gross = 90000, super_rate = 0.1 WHERE id = 1")
+    conn.close()
+
+
+def test_migration_2_keeps_v1_data(tmp_path):
+    path = str(tmp_path / "p.sqlite")
+    _v1_db(path)
+    conn = connect(path)
+    assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+    scenarios = load(conn, "scenarios")
+    assert [(r["name"], r["sacrifice_per_pay"], r["after_tax_per_pay"]) for r in scenarios] == [("s", 10, 20)]
+    assert (scenarios[0]["year"], scenarios[0]["salary_step"]) == (None, None)
+    assert [(r["name"], r["amount"]) for r in load(conn, "expenses")] == [("e", 5)]
+    assert [(r["dates"], r["fuel_price"]) for r in load(conn, "trips")] == [("d", 7)]
+    settings = load_settings(conn)
+    assert (settings.yearly_gross, settings.super_rate, settings.pays_per_year) == (90000, 0.1, 26)
+    assert (settings.salary_step, settings.include_leave_loading) == (None, None)
+    assert load(conn, "salary_levels") == []
+
+
+def level(step, effective_from, annual):
+    return {"id": None, "step": step, "effective_from": effective_from, "annual": annual}
+
+
+def test_save_rows_inserts_salary_levels(tmp_path):
+    conn = connect(str(tmp_path / "p.sqlite"))
+    snap = save_rows(
+        conn, "salary_levels", [], [level("A.1", "2030-01-01", 50000.0), level("A.2", "2030-01-01", 55000.0)]
+    )
+    assert load(conn, "salary_levels") == snap
+    assert [(r["step"], r["effective_from"], r["annual"]) for r in snap] == [
+        ("A.1", "2030-01-01", 50000.0),
+        ("A.2", "2030-01-01", 55000.0),
+    ]
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [level("A.1", "2030-01-01", 50000.0), level("A.1", "2030-01-01", 51000.0)],
+        [level("A.1", "2030-01-01", 0)],
+        [level("A.1", "2030-01-01", -5)],
+        [level("A.1", "1 Jan 2030", 50000.0)],
+        [level("A.1", "2030-1-1", 50000.0)],
+    ],
+)
+def test_salary_levels_reject_duplicates_and_bad_values(tmp_path, rows):
+    conn = connect(str(tmp_path / "p.sqlite"))
+    with pytest.raises(sqlite3.IntegrityError):
+        save_rows(conn, "salary_levels", [], rows)
+    assert load(conn, "salary_levels") == []
+
+
+def test_scenario_year_range(tmp_path):
+    conn = connect(str(tmp_path / "p.sqlite"))
+
+    def scenario(year):
+        return {"id": None, "name": "s", "sacrifice_per_pay": 0, "after_tax_per_pay": 0, "year": year, "salary_step": None}
+
+    with pytest.raises(sqlite3.IntegrityError):
+        save_rows(conn, "scenarios", [], [scenario(1999)])
+    snap = save_rows(conn, "scenarios", [], [scenario(None), scenario(2030)])
+    assert [r["year"] for r in load(conn, "scenarios")] == [None, 2030]
+    assert len(snap) == 2
+
+
+def test_leave_loading_setting_round_trips_as_bool(tmp_path):
+    conn = connect(str(tmp_path / "p.sqlite"))
+    assert load_settings(conn).include_leave_loading is None
+    set_setting(conn, "include_leave_loading", True)
+    assert load_settings(conn).include_leave_loading is True
+    set_setting(conn, "include_leave_loading", False)
+    assert load_settings(conn).include_leave_loading is False
+    set_setting(conn, "salary_step", "A.1")
+    assert load_settings(conn).salary_step == "A.1"
