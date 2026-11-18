@@ -14,7 +14,7 @@ from budget import (
     trip_summary,
     trip_total,
 )
-from tax import TaxSettings, tax
+from tax import RATES, TaxSettings, tax
 
 
 def test_per_week_factors():
@@ -36,6 +36,17 @@ def test_trip_summary_averages_done_trips_only():
     trips = [{"transport_price": 100, "fuel_price": 50}, {"transport_price": 200, "fuel_price": 0},
              {"transport_price": 999, "fuel_price": None}]
     assert trip_summary(trips, 2) == TripSummary(2, 175, 87.5)
+
+
+@pytest.mark.parametrize("weeks", [0, None])
+def test_trip_summary_rejects_non_positive_weeks(weeks):
+    with pytest.raises(ValueError, match="weeks_per_trip must be positive"):
+        trip_summary([{"transport_price": 100, "fuel_price": 0}], weeks)
+
+
+def test_trip_summary_without_done_trips_ignores_weeks():
+    assert trip_summary([], None) == TripSummary(0, 0, 0)
+    assert trip_summary([{"transport_price": 5, "fuel_price": None}], 0) == TripSummary(0, 0, 0)
 
 
 def test_empty_inputs_give_zeros():
@@ -63,12 +74,12 @@ def test_scenario_matches_tax_module_and_rules():
                                     SETTINGS, 500)
     expected_tax = tax(80_000 - 2600, 2600, TaxSettings(False, "none", 0, 0)).total
     assert s100.net_year == pytest.approx(80_000 - 2600 - expected_tax - 1300)
-    assert s100.super_gain_week == pytest.approx((2600 * 0.85 + 1300) / 52)
+    assert s100.super_gain_week == pytest.approx((2600 * (1 - RATES["contributions_tax"]) + 1300) / 52)
     assert s100.cash_savings_week == pytest.approx(max(0, 200 - s100.super_gain_week))
     assert s100.rest_week == pytest.approx(s100.net_week - 500 - s100.cash_savings_week)
     assert s100.employer_super == 9600 and s100.concessional_total == 12_200
     assert s100.cap_left == 20_300
-    assert s100.fhss_release == pytest.approx(2600 * 0.85 + 1300)
+    assert s100.fhss_release == pytest.approx(2600 * (1 - RATES["contributions_tax"]) + 1300)
     assert s100.takehome_reduction_week == pytest.approx((base.net_year - s100.net_year) / 52)
 
 
