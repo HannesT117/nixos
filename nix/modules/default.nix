@@ -33,9 +33,13 @@
     syntaxHighlighting.enable = true;
     ohMyZsh = {
       enable = true;
-      plugins = [ "git" "thefuck" ];
+      plugins = [ "git" ];
       theme = "robbyrussell";
     };
+  };
+  programs.pay-respects = {
+    enable = true;
+    alias = "fuck";
   };
   users.defaultUserShell = pkgs.zsh;
 
