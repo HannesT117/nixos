@@ -77,9 +77,15 @@ in
       User = "root";
     };
     script = ''
+      umask 077
+      DB=/var/lib/planner/planner.sqlite
       BACKUP_DIR=${backupDir}
+      [ -s "$DB" ] || { echo "$DB missing or empty" >&2; exit 1; }
       mkdir -p "$BACKUP_DIR"
-      sqlite3 /var/lib/planner/planner.sqlite ".backup '$BACKUP_DIR/$(date -u +%Y-%m-%dT%H-%M-%SZ).sqlite'"
+      rm -f "$BACKUP_DIR"/*.sqlite.tmp
+      TARGET="$BACKUP_DIR/$(date -u +%Y-%m-%dT%H-%M-%SZ).sqlite"
+      sqlite3 -readonly "$DB" ".backup '$TARGET.tmp'"
+      mv "$TARGET.tmp" "$TARGET"
       ls -1 "$BACKUP_DIR"/*.sqlite | sort -r | tail -n +31 | xargs -r rm --
       chown -R syncthing:syncthing "$BACKUP_DIR"
     '';
