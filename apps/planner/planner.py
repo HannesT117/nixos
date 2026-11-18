@@ -95,21 +95,16 @@ def _(conn, mo, store):
     )
     get_trips, set_trips = mo.state(store.load(conn, "trips"), allow_self_loops=True)
     get_settings, set_settings = mo.state(store.load_settings(conn))
-    get_expense_rows_revision, set_expense_rows_revision = mo.state(
-        0, allow_self_loops=True
-    )
     get_tab, set_tab = mo.state("Overview")
     get_error, set_error = mo.state(None)
     return (
         get_error,
         set_error,
-        get_expense_rows_revision,
         get_expenses,
         get_scenarios,
         get_settings,
         get_tab,
         get_trips,
-        set_expense_rows_revision,
         set_expenses,
         set_scenarios,
         set_settings,
@@ -178,6 +173,11 @@ def _(
             mo.stat(label="Total / week", value=money(_totals.total_week)),
             mo.stat(label="Done trips", value=str(_trips.done_trips)),
             mo.stat(label="Average trip", value=money(_trips.average_trip)),
+            mo.stat(label="Weeks per trip", value=f"{_settings.weeks_per_trip:g}"),
+            mo.stat(
+                label="Savings target / week",
+                value=money(_settings.savings_target_week),
+            ),
         ],
         justify="start",
         wrap=True,
@@ -187,6 +187,7 @@ def _(
             {
                 "Scenario": r.name,
                 "Net / week": money(r.net_week),
+                "Expenses / week": money(r.expenses_week),
                 "Rest / week": money(r.rest_week),
                 "Cash savings / week": money(r.cash_savings_week),
                 "Super gain / week": money(r.super_gain_week),
@@ -232,20 +233,18 @@ def _(
     budget,
     clean_rows,
     conn,
-    get_expense_rows_revision,
     get_expenses,
     get_tab,
     guard,
     mo,
-    set_expense_rows_revision,
+    money,
     set_expenses,
     store,
 ):
     mo.stop(get_tab() != "Expenses")
-    get_expense_rows_revision()
 
     def _build():
-        seed = store.load(conn, "expenses")
+        seed = get_expenses()
         defaults = {"name": "", "amount": 0, "period": "Monthly"}
 
         def current():
@@ -272,11 +271,9 @@ def _(
             rows = current()
             del rows[index]
             persist(rows)
-            set_expense_rows_revision(lambda n: n + 1)
 
         def add(_):
             persist([*current(), {"id": None, **defaults}])
-            set_expense_rows_revision(lambda n: n + 1)
 
         on_edit = guard("expenses", on_edit)
         delete = guard("expenses", delete)
@@ -285,6 +282,7 @@ def _(
         lines = [
             {
                 "id": row["id"],
+                "weekly": money(budget.per_week(row["amount"], row["period"])),
                 "name": mo.ui.text(
                     value=row["name"], placeholder="Name", on_change=on_edit
                 ),
@@ -306,7 +304,13 @@ def _(
         adder = mo.ui.button(label="Add expense", on_click=add)
         rows_view = [
             mo.hstack(
-                [line["name"], line["amount"], line["period"], button],
+                [
+                    line["name"],
+                    line["amount"],
+                    line["period"],
+                    mo.Html(f"<span>{line['weekly']} / week</span>"),
+                    button,
+                ],
                 justify="start",
                 align="center",
                 wrap=True,
@@ -367,6 +371,7 @@ def _(
             [
                 mo.stat(label="Done trips", value=str(_summary.done_trips)),
                 mo.stat(label="Average trip", value=money(_summary.average_trip)),
+                mo.stat(label="Weeks per trip", value=f"{_settings.weeks_per_trip:g}"),
                 mo.stat(label="Trips / week", value=money(_summary.trips_week)),
             ],
             justify="start",

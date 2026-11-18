@@ -21,7 +21,9 @@ def test_runs_on_empty_db(tmp_path):
 
 def test_refuses_without_planner_db():
     env = {k: v for k, v in os.environ.items() if k != "PLANNER_DB"}
-    assert run(env).returncode != 0
+    result = run(env)
+    assert result.returncode != 0
+    assert b"PLANNER_DB is not set" in result.stderr
 
 
 def test_runs_on_populated_db(tmp_path):
