@@ -2,6 +2,7 @@
 
 let
   port = "8484";
+  localClients = "meta skuid != { caddy, grist }";
 in
 {
   users.users.grist = {
@@ -25,20 +26,17 @@ in
     environmentFiles = [ "/persist/secrets/grist-env" ];
   };
 
-  networking.firewall.extraCommands = ''
-    ip46tables -N grist-local 2>/dev/null || true
-    ip46tables -F grist-local
-    ip46tables -A grist-local -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
-    ip46tables -A grist-local -m owner --uid-owner caddy -j RETURN
-    ip46tables -A grist-local -m owner --uid-owner grist -j RETURN
-    ip46tables -A grist-local -p tcp -j REJECT --reject-with tcp-reset
-    ip46tables -C OUTPUT -o lo -p tcp --dport ${port} -j grist-local 2>/dev/null \
-      || ip46tables -A OUTPUT -o lo -p tcp --dport ${port} -j grist-local
-  '';
-  networking.firewall.extraStopCommands = ''
-    ip46tables -D OUTPUT -o lo -p tcp --dport ${port} -j grist-local 2>/dev/null || true
-    ip46tables -F grist-local 2>/dev/null || true
-    ip46tables -X grist-local 2>/dev/null || true
+  networking.nftables.tables.grist-local = {
+    family = "inet";
+    content = ''
+      chain output {
+        type filter hook output priority filter; policy accept;
+        oifname "lo" tcp dport ${port} ct state new ${localClients} reject with tcp reset
+      }
+    '';
+  };
+  networking.nftables.preCheckRuleset = ''
+    sed -i 's/${localClients}/meta skuid != { root, nobody }/' ruleset.conf
   '';
 
   systemd.services.grist-core.serviceConfig = {

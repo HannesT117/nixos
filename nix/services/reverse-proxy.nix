@@ -53,6 +53,6 @@ in
 
   # Firewall
   networking.firewall.extraInputRules = ''
-    ip saddr 100.64.0.0/24 tcp dport { 80, 443 } accept
+    iifname "tailscale0" tcp dport { 80, 443 } accept
   '';
 }

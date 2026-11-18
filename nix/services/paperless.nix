@@ -196,11 +196,6 @@ in
     };
   };
 
-  # Firewall
-  networking.firewall.extraInputRules = ''
-    ip saddr 100.64.0.0/24 tcp dport 8000 accept
-  '';
-
   # Systemd hardening
   systemd.services.paperless-web.serviceConfig = {
     ProtectSystem = "strict";

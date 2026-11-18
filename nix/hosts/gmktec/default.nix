@@ -83,6 +83,7 @@
   };
 
   # Firewall
+  networking.nftables.enable = true;
   networking.firewall.allowedTCPPorts = [ 8822 ];
 
   # Intrusion prevention

@@ -47,11 +47,6 @@ in
     };
   };
 
-  # Firewall
-  networking.firewall.extraInputRules = ''
-    ip saddr 100.64.0.0/24 tcp dport 5678 accept
-  '';
-
   # Disable DynamicUser so impermanence can persist /var/lib/n8n directly.
   # See ./n8n.md
   systemd.services.n8n.serviceConfig = {

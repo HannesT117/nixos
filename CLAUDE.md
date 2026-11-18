@@ -12,7 +12,7 @@
 
 - **Impermanence**: root is wiped every boot. Anything that must survive goes in `nix/modules/impermanence.nix` under `/persist`.
 - **Secrets**: stored in `/persist/secrets/` (0700 root:root). Services access them via `EnvironmentFile`. Prefix with `-` to make optional.
-- **Firewall**: all services restrict to Tailscale (`ip saddr 100.64.0.0/24`). Ollama is localhost-only (no firewall rule).
+- **Firewall**: nftables. Tailscale clients reach web services only through Caddy (`iifname "tailscale0"` on 80/443 in `reverse-proxy.nix`); services get no port rule of their own unless they speak something other than HTTP (e.g. Rex). Ollama is localhost-only.
 - **Reverse proxy**: Caddy with Porkbun DNS-01 ACME. Subdomains in `nix/services/reverse-proxy.nix`.
 - **Static users over DynamicUser**: n8n, ollama, and ntfy-sh use static system users (`isSystemUser = true`) because DynamicUser conflicts with impermanence bind mounts. Always use `DynamicUser = lib.mkForce false` when the upstream module enables it.
 - **Upstream module conflicts**: NixOS upstream modules often set hardening options (e.g., `LockPersonality = "yes"`). Don't re-set what upstream already handles. Only add options the upstream doesn't set. Use `lib.mkForce` only for deliberate overrides with a comment explaining why.
@@ -30,7 +30,7 @@ sudo nixos-rebuild switch --flake /etc/nixos#gmktec
 
 ## Adding a service
 
-1. Create `nix/services/<name>.nix` (static user, hardening, firewall rule)
+1. Create `nix/services/<name>.nix` (static user, hardening; a firewall rule only for non-HTTP ports)
 2. Import in `nix/hosts/gmktec/default.nix`
 3. Persist state in `nix/modules/impermanence.nix` (auto-hidden from sandboxed services)
 4. Add Caddy virtualHost if needed

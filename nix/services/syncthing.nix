@@ -14,11 +14,6 @@
     openDefaultPorts = true; # TCP 22000 + UDP 22000 for sync, UDP 21027 for discovery
   };
 
-  # Firewall
-  networking.firewall.extraInputRules = ''
-    ip saddr 100.64.0.0/24 tcp dport 8384 accept
-  '';
-
   # Systemd hardening — sandbox the service
   systemd.services.syncthing.serviceConfig = {
     # Filesystem isolation

@@ -26,8 +26,4 @@
     StateDirectory = lib.mkForce "ntfy-sh";
     StateDirectoryMode = "0700";
   };
-
-  networking.firewall.extraInputRules = ''
-    ip saddr 100.64.0.0/24 tcp dport 8091 accept
-  '';
 }

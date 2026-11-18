@@ -56,9 +56,4 @@ in {
       SystemCallArchitectures = "native";
     };
   };
-
-  # Firewall (Tailscale)
-  networking.firewall.extraInputRules = ''
-    ip saddr 100.64.0.0/24 tcp dport 9080 accept
-  '';
 }
