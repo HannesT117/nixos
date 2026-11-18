@@ -18,6 +18,7 @@ in
       PORT = port;
       APP_HOME_URL = "https://money.jrdn.cx";
       APP_HOME_INTERNAL_URL = "http://localhost:${port}";
+      GRIST_LOGIN_SYSTEM_TYPE = "forward-auth";
       GRIST_FORWARD_AUTH_HEADER = "Remote-Email";
       GRIST_FORWARD_AUTH_LOGOUT_PATH = "_logout";
       GRIST_IGNORE_SESSION = "true";
