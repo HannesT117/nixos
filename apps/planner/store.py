@@ -2,17 +2,15 @@ import dataclasses
 import os
 import sqlite3
 
-from budget import PERIODS, Settings
-
-_PERIOD_LIST = ",".join(f"'{p}'" for p in PERIODS)
+from budget import Settings
 
 MIGRATIONS: list[str] = [
-    f"""
+    """
 CREATE TABLE scenarios (id INTEGER PRIMARY KEY, name TEXT NOT NULL DEFAULT '',
   sacrifice_per_pay REAL NOT NULL DEFAULT 0, after_tax_per_pay REAL NOT NULL DEFAULT 0);
 CREATE TABLE expenses (id INTEGER PRIMARY KEY, name TEXT NOT NULL DEFAULT '', amount REAL NOT NULL DEFAULT 0,
   period TEXT NOT NULL DEFAULT 'Monthly'
-    CHECK (period IN ({_PERIOD_LIST})));
+    CHECK (period IN ('Weekly','Fortnightly','Monthly','Quarterly','Yearly')));
 CREATE TABLE trips (id INTEGER PRIMARY KEY, dates TEXT, transport TEXT, transport_price REAL,
   insurance TEXT, insurance_price REAL, fuel TEXT, fuel_price REAL, accommodation TEXT, accommodation_price REAL);
 CREATE TABLE settings (id INTEGER PRIMARY KEY CHECK (id = 1), yearly_gross REAL, pays_per_year INTEGER,

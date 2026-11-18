@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from budget import Settings
+from budget import PERIODS, Settings
 from store import (
     MIGRATIONS,
     TABLES,
@@ -164,3 +164,12 @@ def test_deleting_baseline_clears_setting(tmp_path):
     assert load_settings(conn).baseline_scenario_id == snap[0]["id"]
     save_rows(conn, "scenarios", snap, [])
     assert load_settings(conn).baseline_scenario_id is None
+
+
+def test_schema_periods_match_budget_periods(tmp_path):
+    conn = connect(str(tmp_path / "p.sqlite"))
+    for period in PERIODS:
+        save_rows(conn, "expenses", [], [expense("a", 1, period=period)])
+    assert len(load(conn, "expenses")) == len(PERIODS)
+    with pytest.raises(sqlite3.IntegrityError):
+        save_rows(conn, "expenses", [], [expense("a", 1, period="Daily")])
