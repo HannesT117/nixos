@@ -20,7 +20,10 @@ in
       };
       authentication_backend = {
         password_reset.disable = true;
-        file.path = "${stateDir}/users.yml";
+        file = {
+          path = "${stateDir}/users.yml";
+          search.email = true;
+        };
       };
       access_control = {
         default_policy = "deny";
