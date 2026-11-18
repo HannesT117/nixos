@@ -12,7 +12,10 @@ in
     logFormat = "json";
   };
 
-  users.users.rex.shell = pkgs.zsh;
+  users.users.rex = {
+    shell = pkgs.zsh;
+    packages = [ pkgs.claude-code ];
+  };
 
   systemd.services.rex = {
     restartIfChanged = false;

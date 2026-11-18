@@ -26,7 +26,7 @@
     nixosConfigurations.gmktec = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
-        { nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (nixpkgs.lib.getName pkg) [ "n8n" ]; }
+        { nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (nixpkgs.lib.getName pkg) [ "n8n" "claude-code" ]; }
         ./nix/modules # import modules by path rather than flake outputs as long as there's only 1 host
         ./nix/hosts/gmktec
       ];
