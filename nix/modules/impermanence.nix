@@ -66,6 +66,7 @@ in
       "/var/lib/n8n"
       "/var/lib/ollama"
       "/var/lib/jellyfin"
+      "/var/lib/grist-core"
       "/media"
 
       # Network
