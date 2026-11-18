@@ -38,11 +38,15 @@ class TripSummary:
     trips_week: float
 
 
+def valid_weeks_per_trip(value) -> bool:
+    return value is not None and value > 0
+
+
 def trip_summary(trips: list[Mapping], weeks_per_trip: float) -> TripSummary:
     done = [trip_total(t) for t in trips if is_done(t)]
     if not done:
         return TripSummary(0, 0, 0)
-    if weeks_per_trip is None or weeks_per_trip <= 0:
+    if not valid_weeks_per_trip(weeks_per_trip):
         raise ValueError("weeks_per_trip must be positive")
     average = sum(done) / len(done)
     return TripSummary(len(done), average, average / weeks_per_trip)

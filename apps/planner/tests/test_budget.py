@@ -7,6 +7,7 @@ from budget import (
     ExpenseTotals,
     Settings,
     TripSummary,
+    valid_weeks_per_trip,
     expense_totals,
     is_done,
     per_week,
@@ -42,6 +43,11 @@ def test_trip_summary_averages_done_trips_only():
 def test_trip_summary_rejects_non_positive_weeks(weeks):
     with pytest.raises(ValueError, match="weeks_per_trip must be positive"):
         trip_summary([{"transport_price": 100, "fuel_price": 0}], weeks)
+
+
+@pytest.mark.parametrize("weeks,valid", [(None, False), (0, False), (-1, False), (0.5, True), (2, True)])
+def test_valid_weeks_per_trip(weeks, valid):
+    assert valid_weeks_per_trip(weeks) is valid
 
 
 def test_trip_summary_without_done_trips_ignores_weeks():

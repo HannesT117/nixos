@@ -67,9 +67,6 @@ def _(budget):
             cleaned.append(out)
         return cleaned
 
-    def weeks_per_trip_ok(settings):
-        return settings.weeks_per_trip is not None and settings.weeks_per_trip > 0
-
     def incomplete_message(settings):
         names = [LABELS[name] for name in budget.missing_settings(settings)]
         return f"Complete the settings: {', '.join(names)}"
@@ -81,7 +78,6 @@ def _(budget):
         incomplete_message,
         money,
         money_or_dash,
-        weeks_per_trip_ok,
     )
 
 
@@ -338,7 +334,6 @@ def _(
     pl,
     set_trips,
     store,
-    weeks_per_trip_ok,
 ):
     mo.stop(get_tab() != "Trips")
     _settings = get_settings()
@@ -365,7 +360,7 @@ def _(
         on_change=guard("trips", _on_change),
         label="Trips (a trip counts once its fuel price is set, 0 included)",
     )
-    if weeks_per_trip_ok(_settings):
+    if budget.valid_weeks_per_trip(_settings.weeks_per_trip):
         _summary = budget.trip_summary(get_trips(), _settings.weeks_per_trip)
         _cards = mo.hstack(
             [
@@ -384,7 +379,7 @@ def _(
 
 
 @app.cell
-def _(LABELS, conn, get_scenarios, get_tab, guard, mo, set_settings, store):
+def _(LABELS, budget, conn, get_scenarios, get_tab, guard, mo, set_settings, store):
     mo.stop(get_tab() != "Settings")
     _settings = store.load_settings(conn)
 
@@ -409,7 +404,7 @@ def _(LABELS, conn, get_scenarios, get_tab, guard, mo, set_settings, store):
         return max(0, int(value))
 
     def _positive(value):
-        return float(value) if value and value > 0 else None
+        return float(value) if budget.valid_weeks_per_trip(value) else None
 
     _medicare_options = {"—": None, "Yes": True, "No": False}
     _medicare_name = next(
