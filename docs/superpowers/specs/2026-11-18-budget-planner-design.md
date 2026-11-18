@@ -324,3 +324,30 @@ All test values are synthetic.
 - Test framework details, and how tests run locally (e.g. `uv run pytest` with a script header, or a
   flake `checks` entry).
 - The marimo port, if 2719 clashes with anything.
+
+## Addendum (2026-11-19): salary steps, leave loading, scenario year
+
+Decided with the user after the first deploy.
+
+- **Salary from a pay scale.** A new table `salary_levels` holds `step` (text, e.g. "A.3"),
+  `effective_from` (ISO date) and `annual` (the full-time annual salary). It is **data**, filled by
+  the local import from a local file; neither the scale nor the employer appears in git. The code
+  only knows "salary step".
+- **Settings.** `salary_step` (optional): when set, the salary comes from the scale; when empty,
+  the manual `yearly_gross` applies as before. Exactly one of the two is required.
+  `include_leave_loading` (bool, starts NULL like every circumstance, required).
+- **Today's salary.** For a step, the amount with the latest `effective_from` on or before the
+  reference date.
+- **Leave loading.** When on: `annual ÷ 52 × 4 × 0.175` (17.5 % of four weeks of ordinary pay),
+  added to taxable income. Employer super stays on the salary **without** loading (superannuable
+  salary). No cap is modelled.
+- **Scenario year and step.** Each scenario may set `year` and `salary_step`, both optional.
+  - Reference date: 1 March of `year` when set (the March pay rise counts for that year), today
+    otherwise.
+  - Step: the scenario's own step when set, the Settings step otherwise.
+  - With neither a Settings step nor a scenario step, the manual gross is used and `year` has no
+    effect on salary.
+- **Tax rules stay at one financial year** (`tax.py`); the UI says which ("tax rates 2026-27") so a
+  later scenario year is not mistaken for later tax rules.
+- **Errors are visible, never silent.** An unknown step, or a step with no rate on or before the
+  reference date, is an error shown on the page, not $0.
