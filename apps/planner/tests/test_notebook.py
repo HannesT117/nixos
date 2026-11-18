@@ -71,6 +71,7 @@ def populated_db(tmp_path):
         "mls": "none",
         "savings_target_week": 300,
         "weeks_per_trip": 8,
+        "include_leave_loading": False,
         "baseline_scenario_id": scenarios[0]["id"],
     }.items():
         set_setting(conn, field, value)
@@ -131,6 +132,7 @@ def test_runs_with_medicare_levy_false(tmp_path):
         "mls": "none",
         "savings_target_week": 100,
         "weeks_per_trip": 8,
+        "include_leave_loading": False,
     }.items():
         set_setting(conn, field, value)
     settings = load_settings(conn)
@@ -140,4 +142,71 @@ def test_runs_with_medicare_levy_false(tmp_path):
     assert len(scenario_results(scenarios, settings, 0)) == 1
     conn.close()
     result = run({**os.environ, "PLANNER_DB": path})
+    assert result.returncode == 0, result.stderr.decode()
+
+
+SCALE = [
+    {"id": None, "step": "A.1", "effective_from": "2026-01-01", "annual": 80000},
+    {"id": None, "step": "A.2", "effective_from": "2026-01-01", "annual": 90000},
+    {"id": None, "step": "A.1", "effective_from": "2027-01-01", "annual": 84000},
+]
+
+
+def scale_db(tmp_path, scenarios, with_scale=True, step="A.1"):
+    path = str(tmp_path / "p.sqlite")
+    conn = connect(path)
+    save_rows(conn, "scenarios", [], scenarios)
+    if with_scale:
+        save_rows(conn, "salary_levels", [], SCALE)
+    fields = {
+        "pays_per_year": 26,
+        "super_rate": 0.12,
+        "include_medicare_levy": True,
+        "mls": "none",
+        "savings_target_week": 100,
+        "weeks_per_trip": 8,
+        "include_leave_loading": True,
+        "salary_step": step if with_scale else None,
+        "yearly_gross": None if with_scale else 95000,
+    }
+    for field, value in fields.items():
+        set_setting(conn, field, value)
+    conn.close()
+    return path
+
+
+def scenario(name, **extra):
+    return {
+        "id": None,
+        "name": name,
+        "sacrifice_per_pay": 0,
+        "after_tax_per_pay": 0,
+        "year": None,
+        "salary_step": None,
+        **extra,
+    }
+
+
+@pytest.mark.parametrize("tab", TABS)
+def test_runs_with_pay_scale(tmp_path, tab):
+    path = scale_db(
+        tmp_path,
+        [scenario("Base"), scenario("Future", year=2027), scenario("Higher", salary_step="A.2")],
+    )
+    result = run({**os.environ, "PLANNER_DB": path, "PLANNER_START_TAB": tab})
+    assert result.returncode == 0, result.stderr.decode()
+
+
+@pytest.mark.parametrize("tab", TABS)
+def test_unknown_scenario_step_shows_callout(tmp_path, tab):
+    path = scale_db(tmp_path, [scenario("Base"), scenario("Typo", salary_step="Z.9")])
+    result = run({**os.environ, "PLANNER_DB": path, "PLANNER_START_TAB": tab})
+    assert result.returncode == 0, result.stderr.decode()
+    assert b"Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize("tab", TABS)
+def test_runs_on_populated_db_without_scale(tmp_path, tab):
+    path = scale_db(tmp_path, [scenario("Base")], with_scale=False)
+    result = run({**os.environ, "PLANNER_DB": path, "PLANNER_START_TAB": tab})
     assert result.returncode == 0, result.stderr.decode()

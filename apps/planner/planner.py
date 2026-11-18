@@ -12,6 +12,7 @@ app = marimo.App(width="medium", app_title="Budget planner")
 @app.cell
 def _():
     import sys
+    from datetime import date
 
     import marimo as mo
     import polars as pl
@@ -20,8 +21,9 @@ def _():
 
     import budget
     import store
+    import tax
 
-    return budget, mo, pl, store
+    return budget, date, mo, pl, store, tax
 
 
 @app.cell
@@ -31,11 +33,13 @@ def _(store):
 
 
 @app.cell
-def _(budget):
+def _(budget, date, mo):
     TABS = ["Overview", "Expenses", "Trips", "Settings", "Tax details"]
 
     LABELS = {
-        "yearly_gross": "Yearly gross",
+        "yearly_gross": "Yearly gross or salary step",
+        "salary_step": "Salary step",
+        "include_leave_loading": "Leave loading",
         "pays_per_year": "Pays per year",
         "super_rate": "Employer super rate",
         "include_medicare_levy": "Medicare levy",
@@ -67,6 +71,15 @@ def _(budget):
             cleaned.append(out)
         return cleaned
 
+    def results_or_callout(scenarios, settings, total_week, salary_rates):
+        try:
+            results = budget.scenario_results(
+                scenarios, settings, total_week, salary_rates, date.today()
+            )
+        except ValueError as error:
+            return None, mo.callout(f"Scenarios: {error}", kind="danger")
+        return results, None
+
     def incomplete_message(settings):
         names = [LABELS[name] for name in budget.missing_settings(settings)]
         return f"Complete the settings: {', '.join(names)}"
@@ -78,6 +91,7 @@ def _(budget):
         incomplete_message,
         money,
         money_or_dash,
+        results_or_callout,
     )
 
 
@@ -85,6 +99,7 @@ def _(budget):
 def _(conn, mo, store):
     import os
 
+    salary_rates = store.load(conn, "salary_levels")
     get_scenarios, set_scenarios = mo.state(
         store.load(conn, "scenarios"), allow_self_loops=True
     )
@@ -96,6 +111,7 @@ def _(conn, mo, store):
     get_tab, set_tab = mo.state(os.environ.get("PLANNER_START_TAB", "Overview"))
     get_error, set_error = mo.state(None)
     return (
+        salary_rates,
         get_error,
         set_error,
         get_expenses,
@@ -154,6 +170,9 @@ def _(
     mo,
     money,
     money_or_dash,
+    results_or_callout,
+    salary_rates,
+    tax,
 ):
     mo.stop(get_tab() != "Overview")
     _settings = get_settings()
@@ -163,7 +182,10 @@ def _(
     )
     _trips = budget.trip_summary(get_trips(), _settings.weeks_per_trip)
     _totals = budget.expense_totals(get_expenses(), _trips.trips_week)
-    _results = budget.scenario_results(get_scenarios(), _settings, _totals.total_week)
+    _results, _problem = results_or_callout(
+        get_scenarios(), _settings, _totals.total_week, salary_rates
+    )
+    mo.stop(_problem is not None, _problem)
     _cards = mo.hstack(
         [
             mo.stat(label="Recurring / week", value=money(_totals.recurring_week)),
@@ -184,6 +206,9 @@ def _(
         [
             {
                 "Scenario": r.name,
+                "Year": "—" if r.year is None else str(r.year),
+                "Step": r.salary_step or "—",
+                "Gross / year": money(r.gross),
                 "Net / week": money(r.net_week),
                 "Expenses / week": money(r.expenses_week),
                 "Rest / week": money(r.rest_week),
@@ -222,7 +247,15 @@ def _(
             for r in _results
         ]
     )
-    mo.vstack([_cards, mo.md("### Scenarios"), _table, _scenario_cards])
+    mo.vstack(
+        [
+            _cards,
+            mo.md("### Scenarios"),
+            mo.md(f"Tax rates {tax.TAX_YEAR}"),
+            _table,
+            _scenario_cards,
+        ]
+    )
     return
 
 
@@ -381,7 +414,19 @@ def _(
 
 
 @app.cell
-def _(LABELS, budget, conn, get_scenarios, get_tab, guard, mo, set_settings, store):
+def _(
+    LABELS,
+    budget,
+    conn,
+    get_scenarios,
+    get_tab,
+    guard,
+    mo,
+    money,
+    salary_rates,
+    set_settings,
+    store,
+):
     mo.stop(get_tab() != "Settings")
     _settings = store.load_settings(conn)
 
@@ -414,6 +459,38 @@ def _(LABELS, budget, conn, get_scenarios, get_tab, guard, mo, set_settings, sto
         for name, flag in _medicare_options.items()
         if flag is _settings.include_medicare_levy
     )
+    _leave_name = next(
+        name
+        for name, flag in _medicare_options.items()
+        if flag is _settings.include_leave_loading
+    )
+    _steps = budget.salary_steps(salary_rates)
+    if _settings.salary_step is not None and _settings.salary_step not in _steps:
+        _steps = [*_steps, _settings.salary_step]
+    _step_options = {"—": None, **{step: step for step in _steps}}
+    _step_name = next(
+        name for name, step in _step_options.items() if step == _settings.salary_step
+    )
+    _scale_view = (
+        mo.ui.table(
+            [
+                {
+                    "Step": r["step"],
+                    "From": r["effective_from"],
+                    "Annual": money(r["annual"]),
+                }
+                for r in sorted(
+                    salary_rates,
+                    key=lambda r: (_steps.index(r["step"]), r["effective_from"]),
+                )
+            ],
+            selection=None,
+            pagination=False,
+            label="Pay scale (imported)",
+        )
+        if salary_rates
+        else mo.md("No pay scale imported")
+    )
     _baseline_options = {
         (s["name"] or f"Scenario {s['id']}"): s["id"] for s in get_scenarios()
     }
@@ -426,7 +503,26 @@ def _(LABELS, budget, conn, get_scenarios, get_tab, guard, mo, set_settings, sto
         None,
     )
     settings_controls = [
-        _number("yearly_gross", step=100),
+        mo.ui.dropdown(
+            _step_options,
+            value=_step_name,
+            label=LABELS["salary_step"],
+            on_change=_save("salary_step"),
+        ),
+        mo.ui.number(
+            value=_settings.yearly_gross,
+            label="Yearly gross (without salary step)",
+            step=100,
+            on_change=_save(
+                "yearly_gross", lambda v: None if v is None else float(v)
+            ),
+        ),
+        mo.ui.dropdown(
+            _medicare_options,
+            value=_leave_name,
+            label=LABELS["include_leave_loading"],
+            on_change=_save("include_leave_loading"),
+        ),
         _number("pays_per_year", int, step=1),
         _number("super_rate", step=0.005),
         mo.ui.dropdown(
@@ -459,7 +555,7 @@ def _(LABELS, budget, conn, get_scenarios, get_tab, guard, mo, set_settings, sto
             on_change=_save("baseline_scenario_id"),
         ),
     ]
-    mo.vstack(settings_controls)
+    mo.vstack([*settings_controls, _scale_view])
     return (settings_controls,)
 
 
@@ -477,12 +573,20 @@ def _(
     store,
 ):
     mo.stop(get_tab() != "Settings")
-    _defaults = {"name": "", "sacrifice_per_pay": 0, "after_tax_per_pay": 0}
+    _defaults = {
+        "name": "",
+        "sacrifice_per_pay": 0,
+        "after_tax_per_pay": 0,
+        "year": None,
+        "salary_step": None,
+    }
     _schema = {
         "id": pl.Int64,
         "name": pl.Utf8,
         "sacrifice_per_pay": pl.Float64,
         "after_tax_per_pay": pl.Float64,
+        "year": pl.Int64,
+        "salary_step": pl.Utf8,
     }
 
     def _on_change(rows, defaults=_defaults):
@@ -515,6 +619,8 @@ def _(
     mo,
     money,
     money_or_dash,
+    results_or_callout,
+    salary_rates,
 ):
     mo.stop(get_tab() != "Tax details")
     _settings = get_settings()
@@ -524,11 +630,17 @@ def _(
     )
     _trips = budget.trip_summary(get_trips(), _settings.weeks_per_trip)
     _totals = budget.expense_totals(get_expenses(), _trips.trips_week)
-    _results = budget.scenario_results(get_scenarios(), _settings, _totals.total_week)
+    _results, _problem = results_or_callout(
+        get_scenarios(), _settings, _totals.total_week, salary_rates
+    )
+    mo.stop(_problem is not None, _problem)
     mo.ui.table(
         [
             {
                 "Scenario": r.name,
+                "Salary": money(r.salary),
+                "Leave loading": money(r.leave_loading),
+                "Gross": money(r.gross),
                 "Sacrifice / year": money(r.sacrifice_year),
                 "After-tax contribution / year": money(r.after_tax_year),
                 "Taxable income": money(r.taxable),
