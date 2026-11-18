@@ -7,9 +7,9 @@ Accessible to local services via the OpenAI-compatible API. Not exposed on Tails
 
 Ollama runs in a restricted systemd sandbox:
 
-- **`InaccessiblePaths`**: every persisted path, auto-derived from impermanence
-  `/var/lib/*` path except ollama's own is hidden. New services are picked up
-  automatically. `/persist/secrets` is also hidden.
+- **`InaccessiblePaths`**: `homelab.sandbox.hiddenPathsFor` (`nix/modules/sandbox.nix`)
+  hides every persisted `/var/lib/*` path except ollama's own, plus `/persist` and
+  `/media`. New services are picked up automatically.
 - **`IPAddressDeny = any` / `IPAddressAllow = localhost`**: no outbound network;
   cannot exfiltrate data or reach other services.
 - **`CapabilityBoundingSet = ""`**: all Linux capabilities dropped.

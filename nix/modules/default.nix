@@ -1,5 +1,5 @@
 { inputs, pkgs, ... }: {
-  imports = [ ./impermanence.nix ];
+  imports = [ ./impermanence.nix ./sandbox.nix ];
 
   # Nix settings
   nix = {

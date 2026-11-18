@@ -67,6 +67,7 @@ in
       "/var/lib/ollama"
       "/var/lib/jellyfin"
       "/var/lib/grist-core"
+      { directory = "/var/lib/rex"; user = "rex"; group = "rex"; mode = "0700"; }
       "/media"
 
       # Network

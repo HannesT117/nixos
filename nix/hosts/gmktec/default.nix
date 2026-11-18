@@ -18,6 +18,7 @@
     ../../services/ntfy.nix
     ../../services/jellyfin.nix
     ../../services/grist.nix
+    ../../services/rex.nix
     ../../services/reverse-proxy.nix
   ];
 

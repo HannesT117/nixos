@@ -1,13 +1,5 @@
 { config, pkgs, lib, ... }:
 
-let
-  # Derive InaccessiblePaths from impermanence: every persisted /var/lib/* path
-  # except ollama's own is hidden. New services are picked up automatically.
-  persistedDirs = config.environment.persistence."/persist".directories;
-  dirPath = d: if builtins.isString d then d else d.directory;
-  otherServicePaths = builtins.filter (p: p != "/var/lib/ollama")
-    (map dirPath (builtins.filter (d: lib.hasPrefix "/var/lib/" (dirPath d)) persistedDirs));
-in
 {
   users.users.ollama = {
     isSystemUser = true;
@@ -36,7 +28,7 @@ in
     CapabilityBoundingSet = "";
 
     # Auto-derived from impermanence: hide all other /var/lib/* service data
-    InaccessiblePaths = otherServicePaths ++ [ "/persist/secrets" ];
+    InaccessiblePaths = config.homelab.sandbox.hiddenPathsFor "/var/lib/ollama";
 
     MemoryMax = "8G";
 

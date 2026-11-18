@@ -16,6 +16,10 @@
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    rex = {
+      url = "https://pkgs.superlogical.com/rex/nix/preview/0.1.0-preview.21.tar.gz";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { self, nixpkgs, nixos-hardware, ... } @ inputs: {

@@ -186,13 +186,31 @@
         "type": "github"
       }
     },
+    "rex": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794939798,
+        "narHash": "sha256-Tsr0uwzT2RvMj5wamTy20im8Df8YdBY6BWZlTvqaj+c=",
+        "type": "tarball",
+        "url": "https://pkgs.superlogical.com/rex/nix/preview/0.1.0-preview.21.tar.gz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://pkgs.superlogical.com/rex/nix/preview/0.1.0-preview.21.tar.gz"
+      }
+    },
     "root": {
       "inputs": {
         "disko": "disko",
         "impermanence": "impermanence",
         "lanzaboote": "lanzaboote",
         "nixos-hardware": "nixos-hardware",
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs_2",
+        "rex": "rex"
       }
     },
     "rust-overlay": {
