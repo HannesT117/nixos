@@ -26,6 +26,7 @@ in
     serviceConfig = {
       ExecStart = "${python}/bin/marimo run ${app}/planner.py --headless --host 127.0.0.1 --port ${port}";
       WorkingDirectory = app;
+      Restart = "on-failure";
       User = "planner";
       Group = "planner";
       StateDirectory = "planner";
