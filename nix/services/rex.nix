@@ -25,6 +25,10 @@ let
     init.defaultBranch = "main";
     credential."https://github.com".helper = "!${pkgs.gh}/bin/gh auth git-credential";
   });
+
+  zshrcLocal = pkgs.writeText "rex-zshrc-local" ''
+    [[ $PWD == $HOME ]] && cd ${config.homelab.projects.directory}
+  '';
 in
 {
   imports = [ inputs.rex.nixosModules.default ];
@@ -103,6 +107,7 @@ in
         install -D -m 0644 "$src/$f" "$dst/$f"
       done
       install -m 0644 ${gitconfig} "$dst/.gitconfig"
+      install -m 0644 ${zshrcLocal} "$dst/.zshrc.local"
     '';
   };
 
