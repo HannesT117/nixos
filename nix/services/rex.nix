@@ -17,12 +17,39 @@ let
     ".claude/skills/retro/SKILL.md"
   ];
 
+  gitHookNames = [
+    "applypatch-msg" "pre-applypatch" "post-applypatch" "pre-commit" "pre-merge-commit"
+    "prepare-commit-msg" "commit-msg" "post-commit" "pre-rebase" "post-checkout"
+    "post-merge" "pre-push" "pre-auto-gc" "post-rewrite" "push-to-checkout"
+  ];
+
+  gitHookDispatch = pkgs.writeShellScript "rex-git-hook" ''
+    set -euo pipefail
+    name=$(basename "$0")
+    repoHook="$(${pkgs.git}/bin/git rev-parse --git-common-dir)/hooks/$name"
+    if [ "$name" != pre-push ]; then
+      if [ -x "$repoHook" ]; then exec "$repoHook" "$@"; fi
+      exit 0
+    fi
+    input=$(cat)
+    while read -r _ localSha _ remoteSha; do
+      [[ $localSha =~ ^0+$ ]] && continue
+      if [[ $remoteSha =~ ^0+$ ]]; then range="$localSha --not --remotes"; else range="$remoteSha..$localSha"; fi
+      ${pkgs.gitleaks}/bin/gitleaks git --no-banner --redact --log-opts="$range" .
+    done <<< "$input"
+    if [ -x "$repoHook" ]; then exec "$repoHook" "$@" <<< "$input"; fi
+  '';
+
+  gitHooks = pkgs.linkFarm "rex-git-hooks"
+    (map (name: { inherit name; path = gitHookDispatch; }) gitHookNames);
+
   gitconfig = pkgs.writeText "rex-gitconfig" (lib.generators.toGitINI {
     user = {
       name = "HannesT117-ai";
       email = "350678913+HannesT117-ai@users.noreply.github.com";
     };
     init.defaultBranch = "main";
+    core.hooksPath = "${gitHooks}";
     credential."https://github.com".helper = "!${pkgs.gh}/bin/gh auth git-credential";
   });
 
