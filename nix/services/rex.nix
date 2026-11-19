@@ -23,6 +23,7 @@ let
       email = "350678913+HannesT117-ai@users.noreply.github.com";
     };
     init.defaultBranch = "main";
+    credential."https://github.com".helper = "!${pkgs.gh}/bin/gh auth git-credential";
   });
 in
 {
@@ -36,7 +37,7 @@ in
 
   users.users.rex = {
     shell = pkgs.zsh;
-    packages = [ pkgs.claude-code ];
+    packages = [ pkgs.claude-code pkgs.gh ];
   };
 
   systemd.services.rex = {
