@@ -1,9 +1,10 @@
 { config, lib, ... }:
 
 let
-  persistedDirs = config.environment.persistence."/persist".directories;
-  dirPath = d: if builtins.isString d then d else d.directory;
-  serviceStatePaths = builtins.filter (lib.hasPrefix "/var/lib/") (map dirPath persistedDirs);
+  persistence = config.environment.persistence."/persist";
+  userHomes = map (name: config.users.users.${name}.home) (lib.attrNames persistence.users);
+  serviceStatePaths = builtins.filter (lib.hasPrefix "/var/lib/")
+    (map (d: d.dirPath) persistence.directories ++ userHomes);
 in
 {
   options.homelab.sandbox.hiddenPathsFor = lib.mkOption {
@@ -11,7 +12,8 @@ in
     readOnly = true;
     description = ''
       Paths a sandboxed service must not see, given its own state directory:
-      every other persisted /var/lib/* directory, plus /persist and /media.
+      every other persisted /var/lib/* directory or user home with persisted
+      entries, plus /persist and /media.
       Use the result as the unit's InaccessiblePaths.
     '';
   };
