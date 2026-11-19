@@ -3,20 +3,6 @@
 let
   clientAddresses = [ "100.64.0.1" "fd7a:115c:a1e0::1" ];
 
-  dotfiles = [
-    ".zshrc"
-    ".claude/AGENTS.md"
-    ".claude/agents/architecture-critic.md"
-    ".claude/agents/logic-critic.md"
-    ".claude/rules/architecture.md"
-    ".claude/rules/code-comments.md"
-    ".claude/rules/fixing-bugs.md"
-    ".claude/rules/handoffs.md"
-    ".claude/rules/pr-conventions.md"
-    ".claude/rules/skill-routing.md"
-    ".claude/skills/retro/SKILL.md"
-  ];
-
   gitHookNames = [
     "applypatch-msg" "pre-applypatch" "post-applypatch" "pre-commit" "pre-merge-commit"
     "prepare-commit-msg" "commit-msg" "post-commit" "pre-rebase" "post-checkout"
@@ -43,24 +29,28 @@ let
   gitHooks = pkgs.linkFarm "rex-git-hooks"
     (map (name: { inherit name; path = gitHookDispatch; }) gitHookNames);
 
-  gitconfig = pkgs.writeText "rex-gitconfig" (lib.generators.toGitINI {
+  gitconfigLocal = pkgs.writeText "rex-gitconfig-local" (lib.generators.toGitINI {
     user = {
       name = "HannesT117-ai";
       email = "350678913+HannesT117-ai@users.noreply.github.com";
     };
-    init.defaultBranch = "main";
     core.hooksPath = "${gitHooks}";
-    credential."https://github.com".helper = "!${pkgs.gh}/bin/gh auth git-credential";
+    credential."https://github.com".helper = [ "" "!${pkgs.gh}/bin/gh auth git-credential" ];
+    credential."https://gist.github.com".helper = "";
   });
 
   stateDir = config.users.users.rex.home;
   claudeConfig = ".claude";
   claudeConfigDir = "${stateDir}/${claudeConfig}";
+  zshState = ".local/state/zsh";
   persistence = {
     directories = map (directory: { inherit directory; mode = "0700"; }) [
       "servers"
+      "uploads"
       claudeConfig
       ".config/gh"
+      ".cache"
+      zshState
     ];
     files = [ "host-id" ];
   };
@@ -68,10 +58,17 @@ let
 
   zshrcLocal = pkgs.writeText "rex-zshrc-local" ''
     export CLAUDE_CONFIG_DIR=${claudeConfigDir}
+    HISTFILE=${stateDir}/${zshState}/history
     [[ $PWD == $HOME ]] && cd ${config.homelab.projects.directory}
   '';
 
-  dotfilesManifest = pkgs.writeText "rex-dotfiles-manifest" (lib.concatLines dotfiles);
+  publicDotfiles = "/etc/dotfiles";
+  stowPackage = "shared";
+
+  personalRepoName = "dotfiles-personal";
+  personalRepo = config.homelab.git.repos.${personalRepoName}.path;
+  personalCheckout = "/run/${personalRepoName}/checkout";
+  personalGitCryptKey = "/persist/secrets/${personalRepoName}-git-crypt-key";
 in
 {
   imports = [ inputs.rex.nixosModules.default ];
@@ -134,12 +131,51 @@ in
       };
     };
 
+    homelab.git.repos.${personalRepoName}.requireEncryption = true;
+
+    systemd.services.dotfiles-personal-checkout = {
+      description = "Check out and unlock the personal dotfiles for rex";
+      wants = [ config.homelab.git.service ];
+      after = [ config.homelab.git.service ];
+      unitConfig.RequiresMountsFor = [ config.homelab.git.directory ];
+      path = [ pkgs.git pkgs.git-crypt pkgs.coreutils ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        User = "git";
+        Group = "rex";
+        LoadCredential = "git-crypt-key:${personalGitCryptKey}";
+        RuntimeDirectory = personalRepoName;
+        RuntimeDirectoryMode = "0750";
+        UMask = "0027";
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        PrivateTmp = true;
+        PrivateNetwork = true;
+        NoNewPrivileges = true;
+      };
+      script = ''
+        git clone --quiet ${personalRepo} ${personalCheckout}
+        if ! git -C ${personalCheckout} rev-parse -q --verify HEAD >/dev/null; then
+          rm -rf ${personalCheckout}
+          exit 0
+        fi
+        if ! git -C ${personalCheckout} crypt unlock "$CREDENTIALS_DIRECTORY/git-crypt-key"; then
+          rm -rf ${personalCheckout}
+          exit 1
+        fi
+        rm -rf ${personalCheckout}/.git
+      '';
+    };
+
     systemd.services.rex-dotfiles = {
-      description = "Copy allowlisted dotfiles into the rex account";
+      description = "Link the public and personal dotfiles into the rex home";
       wantedBy = [ "multi-user.target" "rex.service" ];
       before = [ "rex.service" ];
-      unitConfig.RequiresMountsFor = [ "/etc/dotfiles" ] ++ persistedDirs;
-      path = [ pkgs.coreutils ];
+      wants = [ "dotfiles-personal-checkout.service" ];
+      after = [ "dotfiles-personal-checkout.service" ];
+      unitConfig.RequiresMountsFor = [ publicDotfiles ] ++ persistedDirs;
+      path = [ pkgs.coreutils pkgs.findutils pkgs.stow ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
@@ -154,25 +190,42 @@ in
         CapabilityBoundingSet = "";
       };
       script = ''
-        src=/etc/dotfiles/shared
         dst=${stateDir}
+        install -m 0644 ${gitconfigLocal} "$dst/.gitconfig.local"
+        install -m 0644 ${zshrcLocal} "$dst/.zshrc.local"
+
         manifest=${claudeConfigDir}/.rex-dotfiles
         if [ -f "$manifest" ]; then
-          comm -23 <(sort "$manifest") <(sort ${dotfilesManifest}) | while IFS= read -r f; do
-            rm -f -- "$dst/$f"
-          done
+          while IFS= read -r f; do
+            [ -L "$dst/$f" ] || rm -f -- "$dst/$f"
+          done < "$manifest"
+          rm -f "$manifest"
         fi
-        for f in ${lib.escapeShellArgs dotfiles}; do
-          if [ ! -f "$src/$f" ]; then
-            echo "missing in dotfiles: $f" >&2
-            continue
-          fi
-          install -D -m 0644 "$src/$f" "$dst/$f"
+        [ -L "$dst/.gitconfig" ] || rm -f "$dst/.gitconfig"
+
+        find "$dst" -path "$dst/.cache" -prune -o -type l -print0 | while IFS= read -r -d "" link; do
+          [ -e "$link" ] && continue
+          case "$(readlink -m "$link")" in
+            ${publicDotfiles}/*|${personalCheckout}/*) rm -f -- "$link" ;;
+          esac
         done
-        install -m 0644 ${gitconfig} "$dst/.gitconfig"
-        install -m 0644 ${zshrcLocal} "$dst/.zshrc.local"
-        install -m 0644 ${dotfilesManifest} "$manifest"
+
+        stow --no-folding -d ${publicDotfiles} -t "$dst" --restow ${stowPackage}
+        if [ -d ${personalCheckout}/${stowPackage} ]; then
+          stow --no-folding -d ${personalCheckout} -t "$dst" --restow ${stowPackage}
+        fi
       '';
+    };
+
+    systemd.paths.dotfiles-personal-sync = {
+      wantedBy = [ "paths.target" ];
+      pathConfig.PathChanged = [ "${personalRepo}/refs/heads" "${personalRepo}/packed-refs" ];
+    };
+
+    systemd.services.dotfiles-personal-sync = {
+      description = "Re-link the personal dotfiles after a push";
+      serviceConfig.Type = "oneshot";
+      script = "systemctl restart dotfiles-personal-checkout.service rex-dotfiles.service";
     };
 
     networking.firewall.extraInputRules = ''

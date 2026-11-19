@@ -1,4 +1,9 @@
-{ inputs, pkgs, lib, ... }: {
+{ inputs, pkgs, lib, ... }:
+
+let
+  macBookAirKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAWETf+yIYzRkaPHjcoHgF2mW2lD7XXJbqPhfUeLrXbg MacBookAir";
+in
+{
   imports = [
     inputs.lanzaboote.nixosModules.lanzaboote
     inputs.impermanence.nixosModules.impermanence
@@ -19,6 +24,7 @@
     ../../services/jellyfin.nix
     ../../services/planner.nix
     ../../services/rex.nix
+    ../../services/git.nix
     ../../services/authelia.nix
     ../../services/reverse-proxy.nix
   ];
@@ -57,13 +63,13 @@
   users.users.nonroot = {
     isNormalUser = true;
     hashedPassword = "!"; # No password for nonroot. Only ssh possible.
-    openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAWETf+yIYzRkaPHjcoHgF2mW2lD7XXJbqPhfUeLrXbg MacBookAir"
-    ];
+    openssh.authorizedKeys.keys = [ macBookAirKey ];
     packages = with pkgs; [
       tree
     ];
   };
+
+  homelab.git.authorizedKeys = [ macBookAirKey ];
 
 
   # SSH
