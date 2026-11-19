@@ -65,7 +65,9 @@ let
   publicDotfiles = "/etc/dotfiles";
   stowPackage = "shared";
 
-  personalRepoName = "dotfiles-personal";
+  personalRepoName = "personal";
+  personalCheckoutUnit = "${personalRepoName}-checkout";
+  personalSyncUnit = "${personalRepoName}-sync";
   personalRepo = config.homelab.git.repos.${personalRepoName}.path;
   personalCheckout = "/run/${personalRepoName}/checkout";
   personalGitCryptKey = "/persist/secrets/${personalRepoName}-git-crypt-key";
@@ -133,7 +135,7 @@ in
 
     homelab.git.repos.${personalRepoName}.requireEncryption = true;
 
-    systemd.services.dotfiles-personal-checkout = {
+    systemd.services.${personalCheckoutUnit} = {
       description = "Check out and unlock the personal dotfiles for rex";
       wants = [ config.homelab.git.service ];
       after = [ config.homelab.git.service ];
@@ -172,8 +174,8 @@ in
       description = "Link the public and personal dotfiles into the rex home";
       wantedBy = [ "multi-user.target" "rex.service" ];
       before = [ "rex.service" ];
-      wants = [ "dotfiles-personal-checkout.service" ];
-      after = [ "dotfiles-personal-checkout.service" ];
+      wants = [ "${personalCheckoutUnit}.service" ];
+      after = [ "${personalCheckoutUnit}.service" ];
       unitConfig.RequiresMountsFor = [ publicDotfiles ] ++ persistedDirs;
       path = [ pkgs.coreutils pkgs.findutils pkgs.stow ];
       serviceConfig = {
@@ -217,15 +219,15 @@ in
       '';
     };
 
-    systemd.paths.dotfiles-personal-sync = {
+    systemd.paths.${personalSyncUnit} = {
       wantedBy = [ "paths.target" ];
       pathConfig.PathChanged = [ "${personalRepo}/refs/heads" "${personalRepo}/packed-refs" ];
     };
 
-    systemd.services.dotfiles-personal-sync = {
+    systemd.services.${personalSyncUnit} = {
       description = "Re-link the personal dotfiles after a push";
       serviceConfig.Type = "oneshot";
-      script = "systemctl restart dotfiles-personal-checkout.service rex-dotfiles.service";
+      script = "systemctl restart ${personalCheckoutUnit}.service rex-dotfiles.service";
     };
 
     networking.firewall.extraInputRules = ''
