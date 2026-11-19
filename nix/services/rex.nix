@@ -37,11 +37,13 @@ in
 
   users.users.rex = {
     shell = pkgs.zsh;
+    extraGroups = [ config.homelab.projects.group config.homelab.nixUsers.group ];
     packages = [ pkgs.claude-code pkgs.gh ];
   };
 
   systemd.services.rex = {
     restartIfChanged = false;
+    unitConfig.RequiresMountsFor = [ config.homelab.projects.directory ];
     serviceConfig = {
       ProtectSystem = "strict";
       ProtectHome = true;
@@ -54,6 +56,7 @@ in
       ProtectKernelLogs = true;
       RestrictAddressFamilies = [ "AF_UNIX" "AF_INET" "AF_INET6" "AF_NETLINK" ];
       InaccessiblePaths = config.homelab.sandbox.hiddenPathsFor "/var/lib/rex";
+      ReadWritePaths = [ config.homelab.projects.directory ];
       IPAddressDeny = [
         "localhost"
         "10.0.0.0/8"
