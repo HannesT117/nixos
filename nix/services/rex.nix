@@ -180,7 +180,7 @@ in
       wants = [ "${personalCheckoutUnit}.service" ];
       after = [ "${personalCheckoutUnit}.service" ];
       unitConfig.RequiresMountsFor = [ publicDotfiles ] ++ persistedDirs;
-      path = [ pkgs.coreutils pkgs.findutils pkgs.stow ];
+      path = [ pkgs.coreutils pkgs.diffutils pkgs.findutils pkgs.stow ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
@@ -202,8 +202,12 @@ in
         for pkg in ${publicDotfiles}/${stowPackage} ${personalCheckout}/${stowPackage}; do
           [ -d "$pkg" ] || continue
           while IFS= read -r -d "" f; do
-            if [ -f "$dst/$f" ] && [ ! -L "$dst/$f" ] && cmp -s "$pkg/$f" "$dst/$f"; then
+            [ -f "$dst/$f" ] && [ ! -L "$dst/$f" ] || continue
+            if cmp -s "$pkg/$f" "$dst/$f"; then
               rm -f -- "$dst/$f"
+            else
+              mv -f -- "$dst/$f" "$dst/$f.pre-stow"
+              echo "moved aside a changed copy: $dst/$f.pre-stow" >&2
             fi
           done < <(cd "$pkg" && find . -type f -printf '%P\0')
         done
