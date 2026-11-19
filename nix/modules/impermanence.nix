@@ -67,7 +67,6 @@ in
       "/var/lib/ollama"
       "/var/lib/jellyfin"
       { directory = "/var/lib/planner"; user = "planner"; group = "planner"; mode = "0700"; }
-      { directory = "/var/lib/rex"; user = "rex"; group = "rex"; mode = "0700"; }
       "/var/lib/authelia-main"
       "/media"
       config.homelab.projects.persistEntry
@@ -92,6 +91,7 @@ in
 
       "/root/.zsh_history"
     ];
+    users.rex = config.homelab.rex.persistence;
   };
 
   systemd.tmpfiles.rules = [
