@@ -63,7 +63,7 @@
       for user in nonroot; do
         home=$(getent passwd "$user" | cut -d: -f6)
         if [ -d "$home" ]; then
-          ${pkgs.stow}/bin/stow \
+          HOME="$home" ${pkgs.stow}/bin/stow \
             --dir=/etc/dotfiles \
             --target="$home" \
             --restow \
