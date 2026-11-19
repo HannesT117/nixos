@@ -70,6 +70,7 @@ in
       "/var/lib/authelia-main"
       "/media"
       config.homelab.projects.persistEntry
+      config.homelab.git.persistEntry
 
       # Network
       { directory = "/etc/NetworkManager/system-connections"; mode = "0700"; }
