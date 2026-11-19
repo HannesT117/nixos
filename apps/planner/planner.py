@@ -57,12 +57,15 @@ def _(budget, date, mo):
     def is_blank(value):
         return value is None or value == "" or value != value
 
+    def stripped(value):
+        return value.strip() if isinstance(value, str) else value
+
     def clean_rows(rows, defaults):
         cleaned = []
         for row in rows:
             out = {"id": None if is_blank(row.get("id")) else int(row["id"])}
             for column, default in defaults.items():
-                value = row.get(column)
+                value = stripped(row.get(column))
                 out[column] = default if is_blank(value) else value
             cleaned.append(out)
         return cleaned
@@ -219,7 +222,15 @@ def _(
         [
             mo.vstack(
                 [
-                    mo.md(f"**{r.name}**"),
+                    mo.md(
+                        " · ".join(
+                            [
+                                f"**{r.name}**",
+                                *([str(r.year)] if r.year is not None else []),
+                                *([r.salary_step] if r.salary_step else []),
+                            ]
+                        )
+                    ),
                     mo.hstack(
                         [
                             mo.stat(label="Net / week", value=money(r.net_week)),
@@ -446,15 +457,15 @@ def _(
     def _positive(value):
         return float(value) if budget.valid_weeks_per_trip(value) else None
 
-    _medicare_options = {"—": None, "Yes": True, "No": False}
+    _yes_no_options = {"—": None, "Yes": True, "No": False}
     _medicare_name = next(
         name
-        for name, flag in _medicare_options.items()
+        for name, flag in _yes_no_options.items()
         if flag is _settings.include_medicare_levy
     )
     _leave_name = next(
         name
-        for name, flag in _medicare_options.items()
+        for name, flag in _yes_no_options.items()
         if flag is _settings.include_leave_loading
     )
     _steps = budget.salary_steps(salary_rates)
@@ -493,14 +504,14 @@ def _(
         ),
         mo.ui.number(
             value=_settings.yearly_gross,
-            label="Yearly gross (without salary step)",
+            label="Yearly gross (without salary step, excluding leave loading)",
             step=100,
             on_change=_save(
                 "yearly_gross", lambda v: None if v is None else float(v)
             ),
         ),
         mo.ui.dropdown(
-            _medicare_options,
+            _yes_no_options,
             value=_leave_name,
             label=LABELS["include_leave_loading"],
             on_change=_save("include_leave_loading"),
@@ -508,7 +519,7 @@ def _(
         _number("pays_per_year", int, step=1),
         _number("super_rate", step=0.005),
         mo.ui.dropdown(
-            _medicare_options,
+            _yes_no_options,
             value=_medicare_name,
             label=LABELS["include_medicare_levy"],
             on_change=_save("include_medicare_levy"),
@@ -593,6 +604,7 @@ def _(
     money,
     results_or_callout,
     salary_rates,
+    tax,
 ):
     mo.stop(get_tab() != "Tax details")
     _settings = get_settings()
@@ -606,34 +618,39 @@ def _(
         get_scenarios(), _settings, _totals.total_week, salary_rates
     )
     mo.stop(_problem is not None, _problem)
-    mo.ui.table(
+    mo.vstack(
         [
-            {
-                "Scenario": r.name,
-                "Salary": money(r.salary),
-                "Leave loading": money(r.leave_loading),
-                "Gross": money(r.gross),
-                "Sacrifice / year": money(r.sacrifice_year),
-                "After-tax contribution / year": money(r.after_tax_year),
-                "Taxable income": money(r.taxable),
-                "Gross tax": money(r.gross_tax),
-                "LITO": money(r.lito),
-                "Medicare levy": money(r.medicare),
-                "MLS rate": f"{r.mls_rate:.2%}",
-                "MLS": money(r.mls),
-                "Total tax": money(r.total_tax),
-                "Net / year": money(r.net_year),
-                "Take-home reduction / week": money(r.takehome_reduction_week),
-                "Super gain / year": money(r.super_gain_year),
-                "Employer super": money(r.employer_super),
-                "Concessional total": money(r.concessional_total),
-                "Cap left": money(r.cap_left),
-                "FHSS release": money(r.fhss_release),
-            }
-            for r in _results
-        ],
-        selection=None,
-        pagination=False,
+            mo.md(f"Tax rates {tax.TAX_YEAR}"),
+            mo.ui.table(
+                [
+                    {
+                        "Scenario": r.name,
+                        "Salary": money(r.salary),
+                        "Leave loading": money(r.leave_loading),
+                        "Gross": money(r.gross),
+                        "Sacrifice / year": money(r.sacrifice_year),
+                        "After-tax contribution / year": money(r.after_tax_year),
+                        "Taxable income": money(r.taxable),
+                        "Gross tax": money(r.gross_tax),
+                        "LITO": money(r.lito),
+                        "Medicare levy": money(r.medicare),
+                        "MLS rate": f"{r.mls_rate:.2%}",
+                        "MLS": money(r.mls),
+                        "Total tax": money(r.total_tax),
+                        "Net / year": money(r.net_year),
+                        "Take-home reduction / week": money(r.takehome_reduction_week),
+                        "Super gain / year": money(r.super_gain_year),
+                        "Employer super": money(r.employer_super),
+                        "Concessional total": money(r.concessional_total),
+                        "Cap left": money(r.cap_left),
+                        "FHSS release": money(r.fhss_release),
+                    }
+                    for r in _results
+                ],
+                selection=None,
+                pagination=False,
+            ),
+        ]
     )
     return
 
