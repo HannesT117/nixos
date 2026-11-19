@@ -37,7 +37,7 @@ in
 
   users.users.rex = {
     shell = pkgs.zsh;
-    extraGroups = [ config.homelab.projects.group ];
+    extraGroups = [ config.homelab.projects.group config.homelab.nixUsers.group ];
     packages = [ pkgs.claude-code pkgs.gh ];
   };
 
