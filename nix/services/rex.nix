@@ -70,7 +70,7 @@ let
   personalSyncUnit = "${personalRepoName}-sync";
   personalRepo = config.homelab.git.repos.${personalRepoName}.path;
   personalCheckout = "/run/${personalRepoName}/checkout";
-  personalGitCryptKey = "/persist/secrets/${personalRepoName}-git-crypt-key";
+  personalGitCryptKey = "/persist/secrets/git-crypt/git-crypt.key";
 in
 {
   imports = [ inputs.rex.nixosModules.default ];
