@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ config, pkgs, lib, ... }:
 
 let
   rollbackScript = pkgs.writeShellScript "rollback-root" ''
@@ -70,6 +70,7 @@ in
       { directory = "/var/lib/rex"; user = "rex"; group = "rex"; mode = "0700"; }
       "/var/lib/authelia-main"
       "/media"
+      config.homelab.projects.persistEntry
 
       # Network
       { directory = "/etc/NetworkManager/system-connections"; mode = "0700"; }
