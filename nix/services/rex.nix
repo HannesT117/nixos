@@ -139,7 +139,10 @@ in
       description = "Check out and unlock the personal dotfiles for rex";
       wants = [ config.homelab.git.service ];
       after = [ config.homelab.git.service ];
-      unitConfig.RequiresMountsFor = [ config.homelab.git.directory ];
+      unitConfig = {
+        RequiresMountsFor = [ config.homelab.git.directory ];
+        ConditionPathExists = personalGitCryptKey;
+      };
       path = [ pkgs.git pkgs.git-crypt pkgs.coreutils ];
       serviceConfig = {
         Type = "oneshot";
@@ -196,13 +199,15 @@ in
         install -m 0644 ${gitconfigLocal} "$dst/.gitconfig.local"
         install -m 0644 ${zshrcLocal} "$dst/.zshrc.local"
 
-        manifest=${claudeConfigDir}/.rex-dotfiles
-        if [ -f "$manifest" ]; then
-          while IFS= read -r f; do
-            [ -L "$dst/$f" ] || rm -f -- "$dst/$f"
-          done < "$manifest"
-          rm -f "$manifest"
-        fi
+        for pkg in ${publicDotfiles}/${stowPackage} ${personalCheckout}/${stowPackage}; do
+          [ -d "$pkg" ] || continue
+          while IFS= read -r -d "" f; do
+            if [ -f "$dst/$f" ] && [ ! -L "$dst/$f" ] && cmp -s "$pkg/$f" "$dst/$f"; then
+              rm -f -- "$dst/$f"
+            fi
+          done < <(cd "$pkg" && find . -type f -printf '%P\0')
+        done
+        rm -f ${claudeConfigDir}/.rex-dotfiles
         [ -L "$dst/.gitconfig" ] || rm -f "$dst/.gitconfig"
 
         find "$dst" -path "$dst/.cache" -prune -o -type l -print0 | while IFS= read -r -d "" link; do
