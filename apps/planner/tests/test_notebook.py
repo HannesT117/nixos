@@ -34,7 +34,7 @@ TABS = ["Overview", "Expenses", "Trips", "Settings", "Tax details"]
 def populated_db(tmp_path):
     path = str(tmp_path / "p.sqlite")
     conn = connect(path)
-    scenarios = save_rows(
+    save_rows(
         conn,
         "scenarios",
         [],
@@ -72,7 +72,6 @@ def populated_db(tmp_path):
         "savings_target_week": 300,
         "weeks_per_trip": 8,
         "include_leave_loading": False,
-        "baseline_scenario_id": scenarios[0]["id"],
     }.items():
         set_setting(conn, field, value)
     conn.close()

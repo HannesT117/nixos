@@ -48,15 +48,11 @@ def _(budget, date, mo):
         "children": "Children",
         "savings_target_week": "Savings target / week",
         "weeks_per_trip": "Weeks per trip",
-        "baseline_scenario_id": "Baseline scenario",
     }
 
     def money(value):
         sign = "-" if value < 0 else ""
         return f"{sign}${abs(value):,.2f}"
-
-    def money_or_dash(value):
-        return "—" if value is None else money(value)
 
     def is_blank(value):
         return value is None or value == "" or value != value
@@ -90,7 +86,6 @@ def _(budget, date, mo):
         clean_rows,
         incomplete_message,
         money,
-        money_or_dash,
         results_or_callout,
     )
 
@@ -169,7 +164,6 @@ def _(
     incomplete_message,
     mo,
     money,
-    money_or_dash,
     results_or_callout,
     salary_rates,
     tax,
@@ -214,7 +208,7 @@ def _(
                 "Rest / week": money(r.rest_week),
                 "Cash savings / week": money(r.cash_savings_week),
                 "Super gain / week": money(r.super_gain_week),
-                "Take-home reduction / week": money_or_dash(r.takehome_reduction_week),
+                "Take-home reduction / week": money(r.takehome_reduction_week),
             }
             for r in _results
         ],
@@ -418,7 +412,6 @@ def _(
     LABELS,
     budget,
     conn,
-    get_scenarios,
     get_tab,
     guard,
     mo,
@@ -491,17 +484,6 @@ def _(
         if salary_rates
         else mo.md("No pay scale imported")
     )
-    _baseline_options = {
-        (s["name"] or f"Scenario {s['id']}"): s["id"] for s in get_scenarios()
-    }
-    _baseline_name = next(
-        (
-            name
-            for name, scenario_id in _baseline_options.items()
-            if scenario_id == _settings.baseline_scenario_id
-        ),
-        None,
-    )
     settings_controls = [
         mo.ui.dropdown(
             _step_options,
@@ -547,13 +529,6 @@ def _(
             step=0.5,
             on_change=_save("weeks_per_trip", _positive),
         ),
-        mo.ui.dropdown(
-            _baseline_options,
-            value=_baseline_name,
-            label=LABELS["baseline_scenario_id"],
-            allow_select_none=True,
-            on_change=_save("baseline_scenario_id"),
-        ),
     ]
     mo.vstack([*settings_controls, _scale_view])
     return (settings_controls,)
@@ -569,7 +544,6 @@ def _(
     mo,
     pl,
     set_scenarios,
-    set_settings,
     store,
 ):
     mo.stop(get_tab() != "Settings")
@@ -595,7 +569,6 @@ def _(
                 conn, "scenarios", get_scenarios(), clean_rows(rows.to_dicts(), defaults)
             )
         )
-        set_settings(store.load_settings(conn))
 
     scenarios_editor = mo.ui.data_editor(
         pl.DataFrame(get_scenarios(), schema=_schema),
@@ -618,7 +591,6 @@ def _(
     incomplete_message,
     mo,
     money,
-    money_or_dash,
     results_or_callout,
     salary_rates,
 ):
@@ -651,9 +623,7 @@ def _(
                 "MLS": money(r.mls),
                 "Total tax": money(r.total_tax),
                 "Net / year": money(r.net_year),
-                "Take-home reduction / week": money_or_dash(
-                    r.takehome_reduction_week
-                ),
+                "Take-home reduction / week": money(r.takehome_reduction_week),
                 "Super gain / year": money(r.super_gain_year),
                 "Employer super": money(r.employer_super),
                 "Concessional total": money(r.concessional_total),

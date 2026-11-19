@@ -351,3 +351,4 @@ Decided with the user after the first deploy.
   later scenario year is not mistaken for later tax rules.
 - **Errors are visible, never silent.** An unknown step, or a step with no rate on or before the
   reference date, is an error shown on the page, not $0.
+- **Take-home reduction per scenario.** It is measured against the same scenario (same year, step and settings) without contributions, so the Settings baseline scenario is no longer used. The `baseline_scenario_id` column stays in the schema, unused.

@@ -146,7 +146,7 @@ class ScenarioResult:
     total_tax: float
     net_year: float
     net_week: float
-    takehome_reduction_week: float | None
+    takehome_reduction_week: float
     super_gain_year: float
     super_gain_week: float
     employer_super: float
@@ -210,7 +210,7 @@ def _scenario(
         total_tax=t.total,
         net_year=net_year,
         net_week=net_week,
-        takehome_reduction_week=None,
+        takehome_reduction_week=0.0,
         super_gain_year=super_gain_year,
         super_gain_week=super_gain_week,
         employer_super=employer_super,
@@ -242,13 +242,19 @@ def scenario_results(
     results = []
     for sc in scenarios:
         try:
-            results.append(_scenario(sc, s, total_week, salary_rates, today))
+            result = _scenario(sc, s, total_week, salary_rates, today)
+            bare = _scenario(
+                {**sc, "sacrifice_per_pay": 0, "after_tax_per_pay": 0},
+                s,
+                total_week,
+                salary_rates,
+                today,
+            )
         except ValueError as e:
             raise ValueError(f"scenario {sc['name']}: {e}") from e
-    baseline = next((r for r in results if r.id == s.baseline_scenario_id), None)
-    if baseline is None:
-        return results
-    return [
-        replace(r, takehome_reduction_week=(baseline.net_year - r.net_year) / WEEKS_PER_YEAR)
-        for r in results
-    ]
+        results.append(
+            replace(
+                result, takehome_reduction_week=(bare.net_year - result.net_year) / WEEKS_PER_YEAR
+            )
+        )
+    return results

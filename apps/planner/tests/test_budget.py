@@ -79,12 +79,11 @@ def test_scenario_results_requires_complete_settings():
 
 
 SETTINGS = Settings(yearly_gross=80_000, pays_per_year=26, super_rate=0.12, include_medicare_levy=False,
-                    mls="none", savings_target_week=200, weeks_per_trip=2, baseline_scenario_id=1,
-                    include_leave_loading=False)
+                    mls="none", savings_target_week=200, weeks_per_trip=2, include_leave_loading=False)
 
 
 def test_scenario_matches_tax_module_and_rules():
-    [base, s100] = scenario_results([{"id": 1, "name": "a", "sacrifice_per_pay": 0, "after_tax_per_pay": 0},
+    [_, s100] = scenario_results([{"id": 1, "name": "a", "sacrifice_per_pay": 0, "after_tax_per_pay": 0},
                                      {"id": 2, "name": "b", "sacrifice_per_pay": 100, "after_tax_per_pay": 50}],
                                     SETTINGS, 500)
     expected_tax = tax(80_000 - 2600, 2600, TaxSettings(False, "none", 0, 0)).total
@@ -95,19 +94,15 @@ def test_scenario_matches_tax_module_and_rules():
     assert s100.employer_super == 9600 and s100.concessional_total == 12_200
     assert s100.cap_left == 20_300
     assert s100.fhss_release == pytest.approx(2600 * (1 - RATES["contributions_tax"]) + 1300)
-    assert s100.takehome_reduction_week == pytest.approx((base.net_year - s100.net_year) / 52)
 
 
-def test_takehome_reduction_without_baseline():
-    [r] = scenario_results([{"id": 1, "name": "a", "sacrifice_per_pay": 0, "after_tax_per_pay": 0}],
-                           replace(SETTINGS, baseline_scenario_id=None), 0)
-    assert r.takehome_reduction_week is None
-
-
-def test_takehome_reduction_with_unknown_baseline_id():
-    [r] = scenario_results([{"id": 1, "name": "a", "sacrifice_per_pay": 0, "after_tax_per_pay": 0}],
-                           replace(SETTINGS, baseline_scenario_id=9), 0)
-    assert r.takehome_reduction_week is None
+def test_reduction_is_per_scenario_without_contributions():
+    zero = {"id": 1, "name": "a", "sacrifice_per_pay": 0, "after_tax_per_pay": 0}
+    with_contrib = {"id": 2, "name": "b", "sacrifice_per_pay": 100, "after_tax_per_pay": 50}
+    [r0, r] = scenario_results([zero, with_contrib], SETTINGS, 500)
+    assert r0.takehome_reduction_week == 0
+    assert r.takehome_reduction_week == pytest.approx((r0.net_year - r.net_year) / 52)
+    assert r.takehome_reduction_week > 0
 
 
 def test_empty_scenarios_with_complete_settings():
@@ -212,3 +207,24 @@ def test_manual_gross_gets_leave_loading():
 def test_unknown_step_raises_with_scenario_name():
     with pytest.raises(ValueError, match="scenario a: no salary for step B.9"):
         scenario_results([{**PLAIN, "salary_step": "B.9"}], SETTINGS, 0, SCALE, TODAY)
+
+
+def test_reduction_ignores_salary_growth_between_years():
+    s = replace(SETTINGS, salary_step="A.1")
+    contrib = {"sacrifice_per_pay": 100, "after_tax_per_pay": 50}
+    zero = {"sacrifice_per_pay": 0, "after_tax_per_pay": 0}
+    results = scenario_results(
+        [
+            {"id": 1, "name": "y26", "year": 2026, **contrib},
+            {"id": 2, "name": "y27", "year": 2027, **contrib},
+            {"id": 3, "name": "z26", "year": 2026, **zero},
+            {"id": 4, "name": "z27", "year": 2027, **zero},
+        ],
+        s, 0, SCALE, TODAY,
+    )
+    y26, y27, z26, z27 = results
+    assert y26.takehome_reduction_week == pytest.approx((z26.net_year - y26.net_year) / 52)
+    assert y27.takehome_reduction_week == pytest.approx((z27.net_year - y27.net_year) / 52)
+    assert y26.takehome_reduction_week != pytest.approx((y27.net_year - y26.net_year) / 52)
+    assert y27.takehome_reduction_week != pytest.approx((y26.net_year - y27.net_year) / 52)
+    assert z26.takehome_reduction_week == 0 and z27.takehome_reduction_week == 0
