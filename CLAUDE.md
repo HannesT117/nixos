@@ -17,6 +17,7 @@
 - **Static users over DynamicUser**: n8n, ollama, and ntfy-sh use static system users (`isSystemUser = true`) because DynamicUser conflicts with impermanence bind mounts. Always use `DynamicUser = lib.mkForce false` when the upstream module enables it.
 - **Upstream module conflicts**: NixOS upstream modules often set hardening options (e.g., `LockPersonality = "yes"`). Don't re-set what upstream already handles. Only add options the upstream doesn't set. Use `lib.mkForce` only for deliberate overrides with a comment explaining why.
 - **Service sandboxes**: `homelab.sandbox.hiddenPathsFor "/var/lib/<own>"` (`nix/modules/sandbox.nix`) returns every persisted `/var/lib/*` except the service's own, plus `/persist` and `/media`. Ollama and Rex use it as `InaccessiblePaths`. No manual maintenance needed when adding services.
+- **Projects**: git projects live in `homelab.projects.directory`; `nix/modules/projects.nix` owns its path, group and permissions. Rex is the only member. A second member needs more than the group and `ReadWritePaths`: a group-writable umask and git `safe.directory` for repos another user owns.
 
 ## Hardware
 
